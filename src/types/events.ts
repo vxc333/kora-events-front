@@ -2,6 +2,8 @@ export type EventStatus = 'DRAFT' | 'PUBLISHED' | 'ONGOING' | 'FINISHED' | 'CANC
 
 export type CertificateTemplate = 'DEFAULT' | 'LANDSCAPE' | 'MINIMALIST'
 
+export type { PageBlock, PageSettings } from './page-builder'
+
 export interface EventSummary {
   id: string
   title: string
@@ -34,6 +36,8 @@ export interface EventDetail {
   maxParticipants: number | null
   primaryColor: string
   certificateTemplate: CertificateTemplate
+  pageBlocks: import('./page-builder').PageBlock[] | null
+  pageSettings: import('./page-builder').PageSettings | null
   organizerId: string
   createdAt: string
   updatedAt: string
