@@ -34,7 +34,8 @@ import { PartnerFormModal } from "@/components/PartnerFormModal";
 import { ParticipantFormModal } from "@/components/ParticipantFormModal";
 import { SignerFormModal } from "@/components/SignerFormModal";
 import { CertificateStudioTab } from "@/components/CertificateStudioTab";
-import { useEvent, usePublishEvent, useCancelEvent, useUploadEventImage, useDownloadAttendanceReport } from "@/hooks/useEvent";
+import { useEvent, usePublishEvent, useCancelEvent, useUploadEventImage, useDownloadAttendanceReport, useUpdatePageBuilder } from "@/hooks/useEvent";
+import { PageBuilderTab } from "@/components/PageBuilderTab";
 import { useTickets, useCreateTicket, useUpdateTicket, useDeleteTicket } from "@/hooks/useTickets";
 import { useCoupons, useCreateCoupon, useUpdateCoupon, useDeactivateCoupon } from "@/hooks/useCoupons";
 import {
@@ -93,7 +94,7 @@ function formatCurrency(value: number): string {
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 }
 
-type TabId = "details" | "tickets" | "participants" | "coupons" | "partners" | "signers" | "certificate";
+type TabId = "details" | "tickets" | "participants" | "coupons" | "partners" | "signers" | "certificate" | "page";
 
 const TABS: Array<{ id: TabId; label: string }> = [
     { id: "details", label: "Detalhes" },
@@ -103,6 +104,7 @@ const TABS: Array<{ id: TabId; label: string }> = [
     { id: "partners", label: "Parceiros" },
     { id: "signers", label: "Assinantes" },
     { id: "certificate", label: "Certificado" },
+    { id: "page", label: "Página" },
 ];
 
 export function EventDetailPage() {
@@ -159,6 +161,9 @@ export function EventDetailPage() {
 
     // Attendance report
     const { downloadReport, isPending: isDownloadingReport } = useDownloadAttendanceReport(id);
+
+    // Page builder
+    const { savePage, isPending: isSavingPage } = useUpdatePageBuilder(id);
 
     // Confirm dialog
     const { confirm, ConfirmDialogNode } = useConfirm();
@@ -996,6 +1001,18 @@ export function EventDetailPage() {
 
             {/* Tab: Certificado */}
             {activeTab === "certificate" && <CertificateStudioTab eventId={id} event={event} signers={signers} />}
+
+            {/* Tab: Página */}
+            {activeTab === "page" && (
+                <PageBuilderTab
+                    eventId={id}
+                    slug={event.slug}
+                    initialBlocks={event.pageBlocks}
+                    initialSettings={event.pageSettings}
+                    onSave={(blocks, settings) => savePage({ pageBlocks: blocks, pageSettings: settings })}
+                    isSaving={isSavingPage}
+                />
+            )}
 
             {/* Modals */}
             <TicketFormModal

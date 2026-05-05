@@ -6,6 +6,8 @@ import { z } from "zod";
 import { Calendar, Clock, MapPin, Laptop, Users, Tag, Ticket, CheckCircle2, AlertCircle, ChevronRight } from "lucide-react";
 import { usePublicEvent, useAvailableTickets, useRegisterForEvent } from "@/hooks/usePublicEvent";
 import type { AvailableTicket } from "@/services/public";
+import { PageBlockRenderer } from "@/components/BlockRenderers";
+import { DEFAULT_PAGE_SETTINGS } from "@/types/page-builder";
 
 function validateCpf(cpf: string): boolean {
     const digits = cpf.replace(/\D/g, '');
@@ -198,64 +200,100 @@ export function PublicEventPage() {
     const hasTickets = tickets.length > 0 && !loadingTickets;
     const requiresTicket = hasTickets;
 
+    const pageSettings = event.pageSettings ?? DEFAULT_PAGE_SETTINGS;
+    const sortedBlocks = (event.pageBlocks ?? []).slice().sort((a, b) => a.order - b.order);
+
+    const FONT_FAMILY: Record<typeof pageSettings.titleFont, string> = {
+        'dm-serif': '"DM Serif Display", Georgia, serif',
+        'inter': '"Inter", system-ui, sans-serif',
+        'playfair': '"Playfair Display", Georgia, serif',
+    };
+    const titleFont = FONT_FAMILY[pageSettings.titleFont];
+
+    const metaItems = (
+        <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
+            <span className="flex items-center gap-1.5">
+                <Calendar className="h-4 w-4" />
+                {formatDate(event.startDate)}
+                {event.endDate !== event.startDate && ` até ${formatDate(event.endDate)}`}
+            </span>
+            <span className="flex items-center gap-1.5">
+                <Clock className="h-4 w-4" />
+                {event.startTime}
+                {event.endTime ? ` – ${event.endTime}` : ""}
+            </span>
+            {event.isOnline ? (
+                <span className="flex items-center gap-1.5">
+                    <Laptop className="h-4 w-4" />
+                    Evento online
+                </span>
+            ) : event.location ? (
+                <span className="flex items-center gap-1.5">
+                    <MapPin className="h-4 w-4" />
+                    {event.location}
+                </span>
+            ) : null}
+            {event.workloadHours != null && event.workloadHours > 0 && (
+                <span className="flex items-center gap-1.5">
+                    <Users className="h-4 w-4" />
+                    {event.workloadHours}h de carga horária
+                </span>
+            )}
+        </div>
+    );
+
     return (
-        <div className="min-h-screen bg-[#FDFCFF]">
-            {/* Hero */}
-            <div
-                className="relative w-full"
-                style={{
-                    background: event.bannerUrl ? undefined : `linear-gradient(135deg, rgba(${rgb}, 0.9) 0%, rgba(${rgb}, 0.6) 100%)`,
-                    minHeight: 320,
-                }}
-            >
-                {event.bannerUrl && (
-                    <>
-                        <img src={event.bannerUrl} alt={event.title} className="absolute inset-0 w-full h-full object-cover" />
-                        <div
-                            className="absolute inset-0"
-                            style={{ background: `linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.6) 100%)` }}
-                        />
-                    </>
-                )}
-                <div className="relative mx-auto px-4 py-16 flex flex-col gap-4">
-                    {event.logoUrl && <img src={event.logoUrl} alt="Logo" className="h-14 w-auto object-contain self-start rounded-lg" />}
-                    <h1
-                        className="text-3xl sm:text-4xl font-bold text-white leading-tight"
-                        style={{ fontFamily: '"DM Serif Display", Georgia, serif' }}
-                    >
-                        {event.title}
-                    </h1>
-                    <div className="flex flex-wrap gap-x-5 gap-y-2 text-white/85 text-sm">
-                        <span className="flex items-center gap-1.5">
-                            <Calendar className="h-4 w-4" />
-                            {formatDate(event.startDate)}
-                            {event.endDate !== event.startDate && ` até ${formatDate(event.endDate)}`}
-                        </span>
-                        <span className="flex items-center gap-1.5">
-                            <Clock className="h-4 w-4" />
-                            {event.startTime}
-                            {event.endTime ? ` – ${event.endTime}` : ""}
-                        </span>
-                        {event.isOnline ? (
-                            <span className="flex items-center gap-1.5">
-                                <Laptop className="h-4 w-4" />
-                                Evento online
-                            </span>
-                        ) : event.location ? (
-                            <span className="flex items-center gap-1.5">
-                                <MapPin className="h-4 w-4" />
-                                {event.location}
-                            </span>
-                        ) : null}
-                        {event.workloadHours != null && event.workloadHours > 0 && (
-                            <span className="flex items-center gap-1.5">
-                                <Users className="h-4 w-4" />
-                                {event.workloadHours}h de carga horária
-                            </span>
-                        )}
+        <div className="min-h-screen" style={{ backgroundColor: pageSettings.bgColor }}>
+            {/* Hero — banner layout */}
+            {pageSettings.heroLayout === 'banner' && (
+                <div
+                    className="relative w-full"
+                    style={{
+                        background: event.bannerUrl ? undefined : `linear-gradient(135deg, rgba(${rgb}, 0.9) 0%, rgba(${rgb}, 0.6) 100%)`,
+                        minHeight: 320,
+                    }}
+                >
+                    {event.bannerUrl && (
+                        <>
+                            <img src={event.bannerUrl} alt={event.title} className="absolute inset-0 w-full h-full object-cover" />
+                            <div
+                                className="absolute inset-0"
+                                style={{ background: `linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.6) 100%)` }}
+                            />
+                        </>
+                    )}
+                    <div className="relative mx-auto px-4 py-16 flex flex-col gap-4">
+                        {event.logoUrl && <img src={event.logoUrl} alt="Logo" className="h-14 w-auto object-contain self-start rounded-lg" />}
+                        <h1 className="text-3xl sm:text-4xl font-bold text-white leading-tight" style={{ fontFamily: titleFont }}>
+                            {event.title}
+                        </h1>
+                        <div className="text-white/85">{metaItems}</div>
                     </div>
                 </div>
-            </div>
+            )}
+
+            {/* Hero — split layout */}
+            {pageSettings.heroLayout === 'split' && (
+                <div className="flex flex-col md:flex-row" style={{ minHeight: 340 }}>
+                    <div className="relative md:w-1/2 min-h-[220px] md:min-h-0">
+                        {event.bannerUrl ? (
+                            <img src={event.bannerUrl} alt={event.title} className="absolute inset-0 w-full h-full object-cover" />
+                        ) : (
+                            <div
+                                className="absolute inset-0"
+                                style={{ background: `linear-gradient(135deg, rgba(${rgb}, 0.9) 0%, rgba(${rgb}, 0.6) 100%)` }}
+                            />
+                        )}
+                    </div>
+                    <div className="md:w-1/2 flex flex-col justify-center p-8 md:p-12 bg-white">
+                        {event.logoUrl && <img src={event.logoUrl} alt="Logo" className="h-12 w-auto object-contain self-start mb-4" />}
+                        <h1 className="text-3xl sm:text-4xl font-bold text-[#19162A] leading-tight" style={{ fontFamily: titleFont }}>
+                            {event.title}
+                        </h1>
+                        <div className="mt-4 text-[#6A6680]">{metaItems}</div>
+                    </div>
+                </div>
+            )}
 
             {/* Content */}
             <div className="max-w-3xl mx-auto px-4 py-10 space-y-10">
@@ -264,6 +302,16 @@ export function PublicEventPage() {
                     <h2 className="text-xl font-semibold text-[#19162A] mb-3">Sobre o evento</h2>
                     <p className="text-[#6A6680] leading-relaxed whitespace-pre-line">{event.description}</p>
                 </section>
+
+                {/* Blocos personalizados */}
+                {sortedBlocks.map((block) => (
+                    <PageBlockRenderer
+                        key={block.id}
+                        block={block}
+                        eventStartDate={event.startDate}
+                        eventStartTime={event.startTime}
+                    />
+                ))}
 
                 {/* Ingressos */}
                 {hasTickets && (
