@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import * as eventsService from '@/services/events'
 import type { UpdateEventInput } from '@/types/events'
+import type { PageBlock, PageSettings } from '@/types/page-builder'
 
 export function useEvent(id: string) {
   const { data: event, isLoading } = useQuery({
@@ -97,6 +98,21 @@ export function useUploadEventImage(id: string) {
   })
 
   return { upload: mutation.mutate, isPending: mutation.isPending }
+}
+
+export function useUpdatePageBuilder(id: string) {
+  const queryClient = useQueryClient()
+
+  const mutation = useMutation({
+    mutationFn: (data: { pageBlocks: PageBlock[]; pageSettings: PageSettings }) =>
+      eventsService.updateEvent(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['event', id] })
+      toast.success('Página salva!')
+    },
+  })
+
+  return { savePage: mutation.mutate, isPending: mutation.isPending }
 }
 
 export function useDownloadAttendanceReport(eventId: string) {
