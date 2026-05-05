@@ -1,11 +1,11 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, CheckCircle2, AlertCircle, WifiOff, RefreshCw, Users, Clock, XCircle, Loader2, QrCode, KeyRound } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, AlertCircle, WifiOff, RefreshCw, Users, Clock, XCircle, Loader2, QrCode, KeyRound, UserSearch } from 'lucide-react'
 import { QrScanner } from '@/components/QrScanner'
 import { useCheckinQueue } from '@/hooks/useCheckinQueue'
 import { useCheckinStats } from '@/hooks/useCheckinStats'
 import { useEvent } from '@/hooks/useEvent'
-import { performCheckin, performCheckinByCpf } from '@/services/checkin'
+import { performCheckin, performCheckinByCpf, performCheckinByName } from '@/services/checkin'
 import type { CheckinResult } from '@/services/checkin'
 
 type ScanStatus = 'idle' | 'loading' | 'success' | 'already' | 'error' | 'queued'
@@ -60,7 +60,7 @@ const RESULT_CONFIG = {
   idle: null,
 } as const
 
-type Mode = 'qr' | 'cpf'
+type Mode = 'qr' | 'cpf' | 'name'
 
 export function CheckinScannerPage() {
   const { eventId = '' } = useParams<{ eventId: string }>()
@@ -70,7 +70,9 @@ export function CheckinScannerPage() {
   const [scan, setScan] = useState<ScanState>({ status: 'idle' })
   const [mode, setMode] = useState<Mode>('qr')
   const [cpfInput, setCpfInput] = useState('')
+  const [nameInput, setNameInput] = useState('')
   const cpfRef = useRef<HTMLInputElement>(null)
+  const nameRef = useRef<HTMLInputElement>(null)
 
   const handleScan = useCallback(async (token: string) => {
     setScan({ status: 'loading' })
@@ -98,6 +100,29 @@ export function CheckinScannerPage() {
       setTimeout(() => setScan({ status: 'idle' }), 3000)
     }
   }, [isOnline, addToQueue, refetchStats])
+
+  const handleNameCheckin = useCallback(async () => {
+    if (!nameInput.trim() || scan.status === 'loading') return
+    setScan({ status: 'loading' })
+    try {
+      const result = await performCheckinByName(nameInput.trim(), eventId)
+      setScan({ status: 'success', result })
+      setNameInput('')
+      refetchStats()
+      setTimeout(() => setScan({ status: 'idle' }), 3500)
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+      if (status === 409) {
+        setScan({ status: 'already', message: msg ?? 'Já fez check-in' })
+      } else if (status === 400) {
+        setScan({ status: 'error', message: msg ?? 'Nome ambíguo — seja mais específico' })
+      } else {
+        setScan({ status: 'error', message: 'Participante não encontrado' })
+      }
+      setTimeout(() => setScan({ status: 'idle' }), 3500)
+    }
+  }, [nameInput, eventId, scan.status, refetchStats])
 
   const handleCpfCheckin = useCallback(async () => {
     if (!cpfInput || scan.status === 'loading') return
@@ -172,28 +197,31 @@ export function CheckinScannerPage() {
         <div className="flex items-center gap-2">
           {/* Mode toggle */}
           <div className="flex items-center rounded-full bg-white/8 p-0.5">
-            <button
-              onClick={() => { setMode('qr'); setScan({ status: 'idle' }) }}
-              className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-all"
-              style={{
-                background: mode === 'qr' ? 'rgba(124,58,237,0.7)' : 'transparent',
-                color: mode === 'qr' ? '#fff' : 'rgba(255,255,255,0.4)',
-              }}
-            >
-              <QrCode size={11} />
-              QR
-            </button>
-            <button
-              onClick={() => { setMode('cpf'); setScan({ status: 'idle' }); setTimeout(() => cpfRef.current?.focus(), 100) }}
-              className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-all"
-              style={{
-                background: mode === 'cpf' ? 'rgba(124,58,237,0.7)' : 'transparent',
-                color: mode === 'cpf' ? '#fff' : 'rgba(255,255,255,0.4)',
-              }}
-            >
-              <KeyRound size={11} />
-              CPF
-            </button>
+            {([
+              { id: 'qr', label: 'QR', icon: QrCode },
+              { id: 'cpf', label: 'CPF', icon: KeyRound },
+              { id: 'name', label: 'Nome', icon: UserSearch },
+            ] as const).map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                onClick={() => {
+                  setMode(id)
+                  setScan({ status: 'idle' })
+                  setTimeout(() => {
+                    if (id === 'cpf') cpfRef.current?.focus()
+                    if (id === 'name') nameRef.current?.focus()
+                  }, 100)
+                }}
+                className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-all"
+                style={{
+                  background: mode === id ? 'rgba(124,58,237,0.7)' : 'transparent',
+                  color: mode === id ? '#fff' : 'rgba(255,255,255,0.4)',
+                }}
+              >
+                <Icon size={11} />
+                {label}
+              </button>
+            ))}
           </div>
 
           {queueCount > 0 && (
@@ -273,7 +301,7 @@ export function CheckinScannerPage() {
               </div>
             )}
           </div>
-        ) : (
+        ) : mode === 'cpf' ? (
           <div className="w-full max-w-xs px-6 flex flex-col items-center gap-4">
             <div
               className="w-12 h-12 rounded-2xl flex items-center justify-center"
@@ -296,6 +324,38 @@ export function CheckinScannerPage() {
             <button
               onClick={handleCpfCheckin}
               disabled={scan.status === 'loading' || cpfInput.replace(/\D/g, '').length < 11}
+              className="w-full rounded-2xl py-3 text-sm font-semibold text-white transition-all disabled:opacity-40"
+              style={{ background: 'linear-gradient(135deg, #5B21B6, #7C3AED)' }}
+            >
+              {scan.status === 'loading' ? (
+                <Loader2 size={18} className="animate-spin mx-auto" />
+              ) : (
+                'Fazer Check-in'
+              )}
+            </button>
+          </div>
+        ) : (
+          <div className="w-full max-w-xs px-6 flex flex-col items-center gap-4">
+            <div
+              className="w-12 h-12 rounded-2xl flex items-center justify-center"
+              style={{ background: 'rgba(124,58,237,0.2)', border: '1px solid rgba(124,58,237,0.3)' }}
+            >
+              <UserSearch size={22} className="text-violet-400" />
+            </div>
+            <p className="text-sm text-white/50 text-center">Digite o nome do participante</p>
+            <input
+              ref={nameRef}
+              type="text"
+              placeholder="Ex: João Silva"
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleNameCheckin() }}
+              disabled={scan.status === 'loading'}
+              className="w-full rounded-2xl border border-white/10 bg-white/8 px-4 py-3 text-center text-lg text-white placeholder:text-white/20 focus:outline-none focus:border-violet-500 disabled:opacity-50"
+            />
+            <button
+              onClick={handleNameCheckin}
+              disabled={scan.status === 'loading' || nameInput.trim().length < 3}
               className="w-full rounded-2xl py-3 text-sm font-semibold text-white transition-all disabled:opacity-40"
               style={{ background: 'linear-gradient(135deg, #5B21B6, #7C3AED)' }}
             >
@@ -407,7 +467,11 @@ export function CheckinScannerPage() {
         </div>
 
         <p className="text-center text-xs text-white/20">
-          {mode === 'qr' ? 'Aponte a câmera para o QR code do participante' : 'Pressione Enter ou toque em "Fazer Check-in"'}
+          {mode === 'qr'
+            ? 'Aponte a câmera para o QR code do participante'
+            : mode === 'name'
+            ? 'Mínimo 3 caracteres — nome ambíguo retorna erro'
+            : 'Pressione Enter ou toque em "Fazer Check-in"'}
         </p>
       </div>
 

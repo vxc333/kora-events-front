@@ -45,3 +45,13 @@ export async function importParticipantsCsv(
   const res = await api.post<{ imported: number }>(`/events/${eventId}/participants/csv`, form)
   return res.data
 }
+
+export async function exportParticipantsCsv(eventId: string, eventTitle: string): Promise<void> {
+  const res = await api.get(`/events/${eventId}/participants/export`, { responseType: 'blob' })
+  const url = URL.createObjectURL(res.data as Blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `participantes-${eventTitle.toLowerCase().replace(/\s+/g, '-')}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}

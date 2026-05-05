@@ -18,6 +18,7 @@ import {
     Building2,
     Search,
     Upload,
+    Download,
     PenLine,
     FileDown,
     QrCode,
@@ -43,6 +44,7 @@ import {
     useCancelParticipant,
     useImportParticipantsCsv,
 } from "@/hooks/useParticipants";
+import { exportParticipantsCsv } from "@/services/participants";
 import { usePartners, useCreatePartner, useUpdatePartner, useDeletePartner, useUploadPartnerLogo } from "@/hooks/usePartners";
 import { useSigners, useCreateSigner, useUpdateSigner, useDeleteSigner, useUploadSignerSignature } from "@/hooks/useSigners";
 import { useConfirm } from "@/hooks/useConfirm";
@@ -607,6 +609,15 @@ export function EventDetailPage() {
                                     if (csvInputRef.current) csvInputRef.current.value = "";
                                 }}
                             />
+                            <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => exportParticipantsCsv(id, event?.title ?? id)}
+                                className="gap-1.5"
+                            >
+                                <Download className="h-3.5 w-3.5" />
+                                Exportar CSV
+                            </Button>
                             <Button
                                 variant="secondary"
                                 size="sm"

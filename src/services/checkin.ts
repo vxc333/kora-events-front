@@ -24,6 +24,11 @@ export async function performCheckinByCpf(cpf: string, eventId: string): Promise
   return res.data
 }
 
+export async function performCheckinByName(name: string, eventId: string): Promise<CheckinResult> {
+  const res = await api.post<CheckinResult>('/checkin/by-name', { name, eventId })
+  return res.data
+}
+
 export async function getCheckinStats(eventId: string): Promise<CheckinStats> {
   const res = await api.get<CheckinStats>(`/events/${eventId}/checkin/stats`)
   return res.data
