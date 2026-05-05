@@ -7,10 +7,43 @@ import { Calendar, Clock, MapPin, Laptop, Users, Tag, Ticket, CheckCircle2, Aler
 import { usePublicEvent, useAvailableTickets, useRegisterForEvent } from "@/hooks/usePublicEvent";
 import type { AvailableTicket } from "@/services/public";
 
+function validateCpf(cpf: string): boolean {
+    const digits = cpf.replace(/\D/g, '');
+    if (digits.length !== 11) return false;
+    if (/^(\d)\1+$/.test(digits)) return false;
+    let sum = 0;
+    for (let i = 0; i < 9; i++) sum += parseInt(digits[i]) * (10 - i);
+    let remainder = (sum * 10) % 11;
+    if (remainder >= 10) remainder = 0;
+    if (remainder !== parseInt(digits[9])) return false;
+    sum = 0;
+    for (let i = 0; i < 10; i++) sum += parseInt(digits[i]) * (11 - i);
+    remainder = (sum * 10) % 11;
+    if (remainder >= 10) remainder = 0;
+    return remainder === parseInt(digits[10]);
+}
+
+function formatCpf(value: string): string {
+    const digits = value.replace(/\D/g, '').slice(0, 11);
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
+    if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
+    return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9, 11)}`;
+}
+
+function formatPhone(value: string): string {
+    const digits = value.replace(/\D/g, '').slice(0, 11);
+    if (digits.length <= 2) return digits.length ? `(${digits}` : '';
+    if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+    if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+}
+
 const schema = z.object({
     name: z.string().min(2, "Nome obrigatório"),
     email: z.string().email("Email inválido"),
-    cpf: z.string().optional(),
+    cpf: z.string().min(1, "CPF obrigatório").refine(validateCpf, "CPF inválido"),
+    phone: z.string().min(1, "Telefone obrigatório"),
     couponCode: z.string().optional(),
 });
 type FormValues = z.infer<typeof schema>;
@@ -117,6 +150,7 @@ export function PublicEventPage() {
     const {
         register,
         handleSubmit,
+        setValue,
         formState: { errors },
     } = useForm<FormValues>({
         resolver: zodResolver(schema),
@@ -126,7 +160,8 @@ export function PublicEventPage() {
         registerForEvent({
             name: data.name,
             email: data.email,
-            cpf: data.cpf || undefined,
+            cpf: data.cpf,
+            phone: data.phone,
             couponCode: data.couponCode || undefined,
             ticketId: selectedTicketId || undefined,
         });
@@ -316,20 +351,60 @@ export function PublicEventPage() {
 
                             {/* CPF */}
                             <div className="flex flex-col gap-1">
-                                <label className="text-sm font-medium text-[#19162A]">
-                                    CPF <span className="text-[#B0ACBF] font-normal">(opcional)</span>
-                                </label>
+                                <label className="text-sm font-medium text-[#19162A]">CPF *</label>
                                 <input
                                     {...register("cpf")}
                                     placeholder="000.000.000-00"
+                                    inputMode="numeric"
                                     className="h-10 w-full rounded-xl border border-[#E4E0F0] bg-white px-3 text-sm text-[#19162A] placeholder:text-[#B0ACBF] focus:outline-none"
+                                    style={{ boxShadow: errors.cpf ? "0 0 0 2px #DC2626" : undefined }}
+                                    onChange={(e) => {
+                                        const masked = formatCpf(e.target.value);
+                                        e.target.value = masked;
+                                        setValue("cpf", masked, { shouldValidate: false });
+                                    }}
                                     onFocus={(e) => {
                                         e.target.style.boxShadow = `0 0 0 2px ${primaryColor}`;
                                     }}
                                     onBlur={(e) => {
-                                        e.target.style.boxShadow = "none";
+                                        e.target.style.boxShadow = errors.cpf ? "0 0 0 2px #DC2626" : "none";
                                     }}
                                 />
+                                {errors.cpf && (
+                                    <p className="text-xs text-[#DC2626] flex items-center gap-1">
+                                        <AlertCircle className="h-3 w-3" />
+                                        {errors.cpf.message}
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Telefone */}
+                            <div className="flex flex-col gap-1">
+                                <label className="text-sm font-medium text-[#19162A]">Telefone *</label>
+                                <input
+                                    {...register("phone")}
+                                    placeholder="(11) 91234-5678"
+                                    inputMode="numeric"
+                                    className="h-10 w-full rounded-xl border border-[#E4E0F0] bg-white px-3 text-sm text-[#19162A] placeholder:text-[#B0ACBF] focus:outline-none"
+                                    style={{ boxShadow: errors.phone ? "0 0 0 2px #DC2626" : undefined }}
+                                    onChange={(e) => {
+                                        const masked = formatPhone(e.target.value);
+                                        e.target.value = masked;
+                                        setValue("phone", masked, { shouldValidate: false });
+                                    }}
+                                    onFocus={(e) => {
+                                        e.target.style.boxShadow = `0 0 0 2px ${primaryColor}`;
+                                    }}
+                                    onBlur={(e) => {
+                                        e.target.style.boxShadow = errors.phone ? "0 0 0 2px #DC2626" : "none";
+                                    }}
+                                />
+                                {errors.phone && (
+                                    <p className="text-xs text-[#DC2626] flex items-center gap-1">
+                                        <AlertCircle className="h-3 w-3" />
+                                        {errors.phone.message}
+                                    </p>
+                                )}
                             </div>
 
                             {/* Cupom */}

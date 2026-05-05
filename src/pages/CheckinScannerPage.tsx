@@ -1,11 +1,11 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, CheckCircle2, AlertCircle, WifiOff, RefreshCw, Users, Clock, XCircle, Loader2 } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, AlertCircle, WifiOff, RefreshCw, Users, Clock, XCircle, Loader2, QrCode, KeyRound } from 'lucide-react'
 import { QrScanner } from '@/components/QrScanner'
 import { useCheckinQueue } from '@/hooks/useCheckinQueue'
 import { useCheckinStats } from '@/hooks/useCheckinStats'
 import { useEvent } from '@/hooks/useEvent'
-import { performCheckin } from '@/services/checkin'
+import { performCheckin, performCheckinByCpf } from '@/services/checkin'
 import type { CheckinResult } from '@/services/checkin'
 
 type ScanStatus = 'idle' | 'loading' | 'success' | 'already' | 'error' | 'queued'
@@ -60,12 +60,17 @@ const RESULT_CONFIG = {
   idle: null,
 } as const
 
+type Mode = 'qr' | 'cpf'
+
 export function CheckinScannerPage() {
   const { eventId = '' } = useParams<{ eventId: string }>()
   const { event, isLoading: eventLoading } = useEvent(eventId)
   const { stats, refetch: refetchStats } = useCheckinStats(eventId)
   const { queueCount, isSyncing, isOnline, addToQueue, sync } = useCheckinQueue()
   const [scan, setScan] = useState<ScanState>({ status: 'idle' })
+  const [mode, setMode] = useState<Mode>('qr')
+  const [cpfInput, setCpfInput] = useState('')
+  const cpfRef = useRef<HTMLInputElement>(null)
 
   const handleScan = useCallback(async (token: string) => {
     setScan({ status: 'loading' })
@@ -94,6 +99,35 @@ export function CheckinScannerPage() {
     }
   }, [isOnline, addToQueue, refetchStats])
 
+  const handleCpfCheckin = useCallback(async () => {
+    if (!cpfInput || scan.status === 'loading') return
+    setScan({ status: 'loading' })
+    try {
+      const result = await performCheckinByCpf(cpfInput, eventId)
+      setScan({ status: 'success', result })
+      setCpfInput('')
+      refetchStats()
+      setTimeout(() => setScan({ status: 'idle' }), 3500)
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status
+      if (status === 409) {
+        const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Já fez check-in'
+        setScan({ status: 'already', message: msg })
+      } else {
+        setScan({ status: 'error', message: 'CPF não encontrado neste evento' })
+      }
+      setTimeout(() => setScan({ status: 'idle' }), 3000)
+    }
+  }, [cpfInput, eventId, scan.status, refetchStats])
+
+  const formatCpfInput = (value: string): string => {
+    const digits = value.replace(/\D/g, '').slice(0, 11)
+    if (digits.length <= 3) return digits
+    if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`
+    if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`
+    return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9, 11)}`
+  }
+
   const pct = stats.total > 0 ? Math.round((stats.checkedIn / stats.total) * 100) : 0
 
   const config = scan.status !== 'idle' ? RESULT_CONFIG[scan.status] : null
@@ -109,9 +143,9 @@ export function CheckinScannerPage() {
       className="relative flex h-dvh flex-col overflow-hidden"
       style={{ background: '#0D0B18', fontFamily: '"DM Sans", system-ui, sans-serif' }}
     >
-      {/* Camera — full background */}
+      {/* Camera — full background, only in QR mode */}
       <div className="absolute inset-0">
-        <QrScanner onScan={handleScan} active={scan.status === 'idle'} />
+        <QrScanner onScan={handleScan} active={mode === 'qr' && scan.status === 'idle'} />
       </div>
 
       {/* Dark vignette overlay */}
@@ -136,6 +170,32 @@ export function CheckinScannerPage() {
         </Link>
 
         <div className="flex items-center gap-2">
+          {/* Mode toggle */}
+          <div className="flex items-center rounded-full bg-white/8 p-0.5">
+            <button
+              onClick={() => { setMode('qr'); setScan({ status: 'idle' }) }}
+              className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-all"
+              style={{
+                background: mode === 'qr' ? 'rgba(124,58,237,0.7)' : 'transparent',
+                color: mode === 'qr' ? '#fff' : 'rgba(255,255,255,0.4)',
+              }}
+            >
+              <QrCode size={11} />
+              QR
+            </button>
+            <button
+              onClick={() => { setMode('cpf'); setScan({ status: 'idle' }); setTimeout(() => cpfRef.current?.focus(), 100) }}
+              className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-all"
+              style={{
+                background: mode === 'cpf' ? 'rgba(124,58,237,0.7)' : 'transparent',
+                color: mode === 'cpf' ? '#fff' : 'rgba(255,255,255,0.4)',
+              }}
+            >
+              <KeyRound size={11} />
+              CPF
+            </button>
+          </div>
+
           {queueCount > 0 && (
             <button
               onClick={() => sync()}
@@ -170,53 +230,83 @@ export function CheckinScannerPage() {
 
       {/* Viewfinder — center overlay */}
       <div className="relative z-10 flex flex-1 items-center justify-center">
-        <div className="relative" style={{ width: 220, height: 220 }}>
-          {/* Corner brackets */}
-          {(['tl', 'tr', 'bl', 'br'] as const).map((corner) => (
-            <svg
-              key={corner}
-              className="absolute"
-              width={36}
-              height={36}
-              style={{
-                top: corner.startsWith('t') ? 0 : 'auto',
-                bottom: corner.startsWith('b') ? 0 : 'auto',
-                left: corner.endsWith('l') ? 0 : 'auto',
-                right: corner.endsWith('r') ? 0 : 'auto',
-                transform: `rotate(${{ tl: 0, tr: 90, bl: 270, br: 180 }[corner]}deg)`,
-              }}
-            >
-              <path
-                d="M4 32 L4 4 L32 4"
-                fill="none"
-                stroke={scan.status === 'success' ? '#4ade80' : '#7c3aed'}
-                strokeWidth={3}
-                strokeLinecap="round"
-                style={{ transition: 'stroke 0.3s' }}
+        {mode === 'qr' ? (
+          <div className="relative" style={{ width: 220, height: 220 }}>
+            {(['tl', 'tr', 'bl', 'br'] as const).map((corner) => (
+              <svg
+                key={corner}
+                className="absolute"
+                width={36}
+                height={36}
+                style={{
+                  top: corner.startsWith('t') ? 0 : 'auto',
+                  bottom: corner.startsWith('b') ? 0 : 'auto',
+                  left: corner.endsWith('l') ? 0 : 'auto',
+                  right: corner.endsWith('r') ? 0 : 'auto',
+                  transform: `rotate(${{ tl: 0, tr: 90, bl: 270, br: 180 }[corner]}deg)`,
+                }}
+              >
+                <path
+                  d="M4 32 L4 4 L32 4"
+                  fill="none"
+                  stroke={scan.status === 'success' ? '#4ade80' : '#7c3aed'}
+                  strokeWidth={3}
+                  strokeLinecap="round"
+                  style={{ transition: 'stroke 0.3s' }}
+                />
+              </svg>
+            ))}
+            {scan.status === 'idle' && (
+              <div
+                className="absolute left-3 right-3"
+                style={{
+                  height: 2,
+                  background: 'linear-gradient(to right, transparent, #7c3aed, #a78bfa, #7c3aed, transparent)',
+                  boxShadow: '0 0 8px #7c3aed80',
+                  animation: 'scanLine 2s ease-in-out infinite',
+                }}
               />
-            </svg>
-          ))}
-
-          {/* Scan line — only when idle */}
-          {scan.status === 'idle' && (
+            )}
+            {scan.status === 'loading' && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <Loader2 size={32} className="animate-spin text-violet-400" />
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="w-full max-w-xs px-6 flex flex-col items-center gap-4">
             <div
-              className="absolute left-3 right-3"
-              style={{
-                height: 2,
-                background: 'linear-gradient(to right, transparent, #7c3aed, #a78bfa, #7c3aed, transparent)',
-                boxShadow: '0 0 8px #7c3aed80',
-                animation: 'scanLine 2s ease-in-out infinite',
-              }}
-            />
-          )}
-
-          {/* Loading spinner */}
-          {scan.status === 'loading' && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <Loader2 size={32} className="animate-spin text-violet-400" />
+              className="w-12 h-12 rounded-2xl flex items-center justify-center"
+              style={{ background: 'rgba(124,58,237,0.2)', border: '1px solid rgba(124,58,237,0.3)' }}
+            >
+              <KeyRound size={22} className="text-violet-400" />
             </div>
-          )}
-        </div>
+            <p className="text-sm text-white/50 text-center">Digite o CPF do participante</p>
+            <input
+              ref={cpfRef}
+              type="text"
+              inputMode="numeric"
+              placeholder="000.000.000-00"
+              value={cpfInput}
+              onChange={(e) => setCpfInput(formatCpfInput(e.target.value))}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleCpfCheckin() }}
+              disabled={scan.status === 'loading'}
+              className="w-full rounded-2xl border border-white/10 bg-white/8 px-4 py-3 text-center text-lg font-mono tracking-widest text-white placeholder:text-white/20 focus:outline-none focus:border-violet-500 disabled:opacity-50"
+            />
+            <button
+              onClick={handleCpfCheckin}
+              disabled={scan.status === 'loading' || cpfInput.replace(/\D/g, '').length < 11}
+              className="w-full rounded-2xl py-3 text-sm font-semibold text-white transition-all disabled:opacity-40"
+              style={{ background: 'linear-gradient(135deg, #5B21B6, #7C3AED)' }}
+            >
+              {scan.status === 'loading' ? (
+                <Loader2 size={18} className="animate-spin mx-auto" />
+              ) : (
+                'Fazer Check-in'
+              )}
+            </button>
+          </div>
+        )}
 
         <style>{`
           @keyframes scanLine {
@@ -316,7 +406,9 @@ export function CheckinScannerPage() {
           </div>
         </div>
 
-        <p className="text-center text-xs text-white/20">Aponte a câmera para o QR code do participante</p>
+        <p className="text-center text-xs text-white/20">
+          {mode === 'qr' ? 'Aponte a câmera para o QR code do participante' : 'Pressione Enter ou toque em "Fazer Check-in"'}
+        </p>
       </div>
 
       <style>{`

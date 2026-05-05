@@ -18,7 +18,8 @@ export interface AvailableTicket {
 export interface RegisterInput {
   name: string
   email: string
-  cpf?: string
+  cpf: string
+  phone: string
   ticketId?: string
   couponCode?: string
 }
