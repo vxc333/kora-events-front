@@ -15,6 +15,7 @@ import { NotFoundPage } from '@/pages/NotFoundPage'
 import { CheckinPage } from '@/pages/CheckinPage'
 import { CheckinScannerPage } from '@/pages/CheckinScannerPage'
 import { CertificateEditorPage } from '@/pages/CertificateEditorPage'
+import { CertificatePrintPage } from '@/pages/CertificatePrintPage'
 
 export default function App() {
   return (
@@ -33,6 +34,7 @@ export default function App() {
         <Route path="/events/:id/edit" element={<EventFormPage />} />
       </Route>
       <Route path="/events/:id/certificate-editor" element={<PrivateRoute><CertificateEditorPage /></PrivateRoute>} />
+      <Route path="/certificate-print" element={<CertificatePrintPage />} />
       <Route path="/checkin" element={<PrivateRoute><CheckinPage /></PrivateRoute>} />
       <Route path="/checkin/:eventId" element={<PrivateRoute><CheckinScannerPage /></PrivateRoute>} />
       <Route path="*" element={<NotFoundPage />} />

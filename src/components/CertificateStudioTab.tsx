@@ -16,7 +16,7 @@ const A4_L_W = 842;
 const A4_L_H = 595;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type EditorTemplate = CertificateTemplate | "NOIR" | "GOLD" | "EDITORIAL" | "DIPLOMA" | "WAVE";
+export type EditorTemplate = CertificateTemplate | "NOIR" | "GOLD" | "EDITORIAL" | "DIPLOMA" | "WAVE";
 
 interface TemplateInfo {
     id: EditorTemplate;
@@ -25,7 +25,7 @@ interface TemplateInfo {
     pro: boolean;
 }
 
-const TEMPLATES: TemplateInfo[] = [
+export const TEMPLATES: TemplateInfo[] = [
     { id: "DEFAULT", name: "Clássico", orientation: "portrait", pro: false },
     { id: "LANDSCAPE", name: "Paisagem", orientation: "landscape", pro: false },
     { id: "MINIMALIST", name: "Minimalista", orientation: "portrait", pro: false },
@@ -61,18 +61,21 @@ const VARIABLES = [
     { key: "{{codigo}}", label: "Código" },
 ];
 
-const DEFAULT_BODY = "Certificamos que {{nome}} participou do evento {{evento}}, realizado em {{data}}.";
+export const DEFAULT_BODY = "Certificamos que {{nome}} participou do evento {{evento}}, realizado em {{data}}.";
 
-function getCertDimensions(t: EditorTemplate) {
+export function getCertDimensions(t: EditorTemplate) {
     const info = TEMPLATES.find((x) => x.id === t);
     return info?.orientation === "landscape" ? { w: A4_L_W, h: A4_L_H } : { w: A4_P_W, h: A4_P_H };
 }
 
 // ─── Variable parser ──────────────────────────────────────────────────────────
-function parseBodyText(text: string, color: string, eventTitle: string, date: string, hours: string | null): React.ReactNode {
+export function parseBodyText(
+    text: string, color: string, eventTitle: string, date: string, hours: string | null,
+    participantName?: string, participantCpf?: string,
+): React.ReactNode {
     const varMap: Record<string, { value: string; style: React.CSSProperties }> = {
-        nome: { value: "Maria Silva Santos", style: { fontWeight: "700", color, letterSpacing: "-0.01em" } },
-        cpf: { value: "000.000.000-00", style: { fontFamily: "monospace" } },
+        nome: { value: participantName ?? "Maria Silva Santos", style: { fontWeight: "700", color, letterSpacing: "-0.01em" } },
+        cpf: { value: participantCpf ?? "000.000.000-00", style: { fontFamily: "monospace" } },
         email: { value: "participante@email.com", style: {} },
         evento: { value: eventTitle, style: { fontWeight: "600" } },
         data: { value: date, style: {} },
@@ -754,7 +757,7 @@ function WaveCert({ color, event, bodyNode }: CertProps) {
 }
 
 // ─── Cert dispatcher ──────────────────────────────────────────────────────────
-function CertPreview(props: CertProps & { template: EditorTemplate }) {
+export function CertPreview(props: CertProps & { template: EditorTemplate }) {
     const { template, ...rest } = props;
     switch (template) {
         case "DEFAULT":
@@ -837,7 +840,9 @@ export function CertificateStudioTab({ eventId, event, signers }: Props) {
     const [color, setColor] = useState(event.primaryColor ?? "#5B21B6");
     const [watermarkUrl, setWatermarkUrl] = useState<string | null>(() => localStorage.getItem(`kora-wm-${eventId}`));
     const [watermarkOpacity, setWatermarkOpacity] = useState<number>(() => Number(localStorage.getItem(`kora-wm-op-${eventId}`)) || 0.1);
-    const [bodyText, setBodyText] = useState<string>(() => localStorage.getItem(`kora-ct-${eventId}`) || DEFAULT_BODY);
+    const [bodyText, setBodyText] = useState<string>(
+        () => localStorage.getItem(`kora-ct-${eventId}`) || event.certificateBodyText || DEFAULT_BODY,
+    );
     const [saved, setSaved] = useState(false);
     const [scale, setScale] = useState(0.6);
 
@@ -869,7 +874,8 @@ export function CertificateStudioTab({ eventId, event, signers }: Props) {
                 certificateTemplate: ["DEFAULT", "LANDSCAPE", "MINIMALIST"].includes(template)
                     ? (template as CertificateTemplate)
                     : undefined,
-            } as any),
+                certificateBodyText: bodyText,
+            }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["event", eventId] });
             if (watermarkUrl) localStorage.setItem(`kora-wm-${eventId}`, watermarkUrl);
@@ -945,7 +951,7 @@ export function CertificateStudioTab({ eventId, event, signers }: Props) {
 </html>`);
         win.document.close();
         win.focus();
-        setTimeout(() => win.print(), 1800);
+        win.document.fonts.ready.then(() => setTimeout(() => win.print(), 200));
     }, [event.title, template]);
 
     // Build preview body node

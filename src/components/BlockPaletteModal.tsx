@@ -21,13 +21,20 @@ export function BlockPaletteModal({ onSelect, onClose }: Props) {
         <div className="grid grid-cols-2 gap-3 p-5 sm:grid-cols-4">
           {(Object.keys(BLOCK_META) as BlockType[]).map((type) => {
             const meta = BLOCK_META[type]
+            const Icon = meta.icon
             return (
               <button
                 key={type}
                 onClick={() => onSelect(type)}
-                className="flex flex-col items-center gap-2 rounded-xl border border-border bg-surface p-4 text-center transition-all hover:border-brand hover:bg-[#F5F3FF]"
+                className="flex flex-col items-center gap-2.5 rounded-xl border border-border bg-surface p-4 text-center transition-all hover:border-brand hover:shadow-sm"
+                style={{ ['--hover-bg' as string]: meta.bg }}
               >
-                <span className="text-2xl">{meta.icon}</span>
+                <div
+                  className="flex h-10 w-10 items-center justify-center rounded-xl"
+                  style={{ background: meta.bg }}
+                >
+                  <Icon size={20} style={{ color: meta.color }} strokeWidth={1.75} />
+                </div>
                 <span className="text-xs font-medium text-text leading-tight">{meta.label}</span>
               </button>
             )

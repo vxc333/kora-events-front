@@ -70,7 +70,15 @@ export function CouponFormModal({ open, coupon, isPending, onClose, onSubmit }: 
           {isEdit ? 'Editar cupom' : 'Novo cupom'}
         </h2>
 
-        <form onSubmit={handleSubmit((v) => onSubmit({ ...v }))} className="space-y-4">
+        <form
+          onSubmit={handleSubmit((v) =>
+            onSubmit({
+              ...v,
+              expiresAt: v.expiresAt || undefined,
+            }),
+          )}
+          className="space-y-4"
+        >
           <Input
             label="Código"
             placeholder="EX: KORA10"

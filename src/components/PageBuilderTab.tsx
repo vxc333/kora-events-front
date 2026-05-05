@@ -54,7 +54,12 @@ function SortableBlockRow({ block, onEdit, onToggleVisible, onRemove }: Sortable
         <GripVertical size={16} />
       </button>
 
-      <span className="text-lg">{meta.icon}</span>
+      <div
+        className="flex h-7 w-7 items-center justify-center rounded-lg"
+        style={{ background: meta.bg }}
+      >
+        <meta.icon size={14} style={{ color: meta.color }} strokeWidth={1.75} />
+      </div>
       <span className="flex-1 text-sm font-medium text-text">{meta.label}</span>
 
       {!block.visible && (
