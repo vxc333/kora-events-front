@@ -55,3 +55,18 @@ export async function exportParticipantsCsv(eventId: string, eventTitle: string)
   a.click()
   URL.revokeObjectURL(url)
 }
+
+export async function downloadParticipantCertificate(
+  participantId: string,
+  participantName: string,
+): Promise<void> {
+  const res = await api.get(`/certificates/by-participant/${participantId}`, {
+    responseType: 'blob',
+  })
+  const url = URL.createObjectURL(res.data as Blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `certificado-${participantName.toLowerCase().replace(/\s+/g, '-')}.pdf`
+  a.click()
+  URL.revokeObjectURL(url)
+}
