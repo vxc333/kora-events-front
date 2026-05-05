@@ -36,6 +36,7 @@ export interface EventDetail {
   maxParticipants: number | null
   primaryColor: string
   certificateTemplate: CertificateTemplate
+  certificateBodyText: string | null
   pageBlocks: import('./page-builder').PageBlock[] | null
   pageSettings: import('./page-builder').PageSettings | null
   organizerId: string
@@ -73,4 +74,4 @@ export interface CreateEventInput {
   minimumAttendancePercentage?: number
 }
 
-export type UpdateEventInput = Partial<CreateEventInput>
+export type UpdateEventInput = Partial<CreateEventInput & { certificateBodyText: string }>

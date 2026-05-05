@@ -8,6 +8,7 @@ import { usePublicEvent, useAvailableTickets, useRegisterForEvent } from "@/hook
 import type { AvailableTicket } from "@/services/public";
 import { PageBlockRenderer } from "@/components/BlockRenderers";
 import { DEFAULT_PAGE_SETTINGS } from "@/types/page-builder";
+import { getMediaUrl } from "@/lib/utils";
 
 function validateCpf(cpf: string): boolean {
     const digits = cpf.replace(/\D/g, '');
@@ -255,7 +256,7 @@ export function PublicEventPage() {
                 >
                     {event.bannerUrl && (
                         <>
-                            <img src={event.bannerUrl} alt={event.title} className="absolute inset-0 w-full h-full object-cover" />
+                            <img src={getMediaUrl(event.bannerUrl)!} alt={event.title} className="absolute inset-0 w-full h-full object-cover" />
                             <div
                                 className="absolute inset-0"
                                 style={{ background: `linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.6) 100%)` }}
@@ -263,7 +264,7 @@ export function PublicEventPage() {
                         </>
                     )}
                     <div className="relative mx-auto px-4 py-16 flex flex-col gap-4">
-                        {event.logoUrl && <img src={event.logoUrl} alt="Logo" className="h-14 w-auto object-contain self-start rounded-lg" />}
+                        {event.logoUrl && <img src={getMediaUrl(event.logoUrl)!} alt="Logo" className="h-14 w-auto object-contain self-start rounded-lg" />}
                         <h1 className="text-3xl sm:text-4xl font-bold text-white leading-tight" style={{ fontFamily: titleFont }}>
                             {event.title}
                         </h1>
@@ -277,7 +278,7 @@ export function PublicEventPage() {
                 <div className="flex flex-col md:flex-row" style={{ minHeight: 340 }}>
                     <div className="relative md:w-1/2 min-h-[220px] md:min-h-0">
                         {event.bannerUrl ? (
-                            <img src={event.bannerUrl} alt={event.title} className="absolute inset-0 w-full h-full object-cover" />
+                            <img src={getMediaUrl(event.bannerUrl)!} alt={event.title} className="absolute inset-0 w-full h-full object-cover" />
                         ) : (
                             <div
                                 className="absolute inset-0"
@@ -286,7 +287,7 @@ export function PublicEventPage() {
                         )}
                     </div>
                     <div className="md:w-1/2 flex flex-col justify-center p-8 md:p-12 bg-white">
-                        {event.logoUrl && <img src={event.logoUrl} alt="Logo" className="h-12 w-auto object-contain self-start mb-4" />}
+                        {event.logoUrl && <img src={getMediaUrl(event.logoUrl)!} alt="Logo" className="h-12 w-auto object-contain self-start mb-4" />}
                         <h1 className="text-3xl sm:text-4xl font-bold text-[#19162A] leading-tight" style={{ fontFamily: titleFont }}>
                             {event.title}
                         </h1>
@@ -308,7 +309,7 @@ export function PublicEventPage() {
                     <PageBlockRenderer
                         key={block.id}
                         block={block}
-                        eventStartDate={event.startDate}
+                        eventStartDate={event.startDate.slice(0, 10)}
                         eventStartTime={event.startTime}
                     />
                 ))}

@@ -1,4 +1,6 @@
 import { useRef, useState } from "react";
+import { getMediaUrl } from "@/lib/utils";
+import { toast } from "sonner";
 import { Link, useParams } from "react-router-dom";
 import {
     ChevronRight,
@@ -45,7 +47,7 @@ import {
     useCancelParticipant,
     useImportParticipantsCsv,
 } from "@/hooks/useParticipants";
-import { exportParticipantsCsv } from "@/services/participants";
+import { exportParticipantsCsv, downloadParticipantCertificate } from "@/services/participants";
 import { usePartners, useCreatePartner, useUpdatePartner, useDeletePartner, useUploadPartnerLogo } from "@/hooks/usePartners";
 import { useSigners, useCreateSigner, useUpdateSigner, useDeleteSigner, useUploadSignerSignature } from "@/hooks/useSigners";
 import { useConfirm } from "@/hooks/useConfirm";
@@ -161,6 +163,21 @@ export function EventDetailPage() {
 
     // Attendance report
     const { downloadReport, isPending: isDownloadingReport } = useDownloadAttendanceReport(id);
+
+
+
+    const [downloadingCertParticipantId, setDownloadingCertParticipantId] = useState<string | null>(null);
+
+    async function handleDownloadCertificate(p: Participant) {
+        setDownloadingCertParticipantId(p.id);
+        try {
+            await downloadParticipantCertificate(p.id, p.name);
+        } catch {
+            toast.error('Erro ao gerar certificado.');
+        } finally {
+            setDownloadingCertParticipantId(null);
+        }
+    }
 
     // Page builder
     const { savePage, isPending: isSavingPage } = useUpdatePageBuilder(id);
@@ -410,7 +427,7 @@ export function EventDetailPage() {
                     <div className="space-y-2">
                         <div className="relative aspect-[3/1] w-full overflow-hidden rounded-xl bg-bg-muted border border-border">
                             {event.bannerUrl ? (
-                                <img src={event.bannerUrl} alt="Banner" className="h-full w-full object-cover" />
+                                <img src={getMediaUrl(event.bannerUrl)!} alt="Banner" className="h-full w-full object-cover" />
                             ) : (
                                 <div className="flex h-full flex-col items-center justify-center gap-2 text-text-disabled">
                                     <Image className="h-8 w-8" />
@@ -704,6 +721,16 @@ export function EventDetailPage() {
                                             {p.certificateReleased ? "Liberado" : "Liberar"}
                                         </Button>
                                         <Button
+                                            variant="secondary"
+                                            size="sm"
+                                            loading={downloadingCertParticipantId === p.id}
+                                            onClick={() => handleDownloadCertificate(p)}
+                                            className="gap-1.5"
+                                        >
+                                            <FileDown className="h-3.5 w-3.5" />
+                                            Certificado
+                                        </Button>
+                                        <Button
                                             variant="danger"
                                             size="sm"
                                             onClick={async () => {
@@ -843,7 +870,7 @@ export function EventDetailPage() {
                                     <div className="flex items-center gap-3 min-w-0">
                                         {partner.logoUrl ? (
                                             <img
-                                                src={partner.logoUrl}
+                                                src={getMediaUrl(partner.logoUrl)!}
                                                 alt={partner.name}
                                                 className="h-10 w-10 rounded-md object-contain border border-border bg-bg-muted flex-shrink-0"
                                             />
@@ -947,7 +974,7 @@ export function EventDetailPage() {
                                     <div className="flex items-center gap-4 min-w-0">
                                         <div className="flex-shrink-0 w-24 h-10 rounded-md border border-border bg-bg-muted flex items-center justify-center overflow-hidden">
                                             {signer.signatureUrl ? (
-                                                <img src={signer.signatureUrl} alt="Assinatura" className="w-full h-full object-contain" />
+                                                <img src={getMediaUrl(signer.signatureUrl)!} alt="Assinatura" className="w-full h-full object-contain" />
                                             ) : (
                                                 <span className="text-[10px] text-text-disabled">sem assinatura</span>
                                             )}
