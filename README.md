@@ -34,7 +34,7 @@ npm run dev
 
 Acesse `http://localhost:5173`.
 
-> O backend precisa estar rodando em `http://localhost:3333` (ver `backend/README.md`).
+> O backend precisa estar rodando em `http://localhost:3333`.
 
 ---
 
