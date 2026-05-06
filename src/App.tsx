@@ -16,6 +16,7 @@ import { CheckinPage } from '@/pages/CheckinPage'
 import { CheckinScannerPage } from '@/pages/CheckinScannerPage'
 import { CertificateEditorPage } from '@/pages/CertificateEditorPage'
 import { CertificatePrintPage } from '@/pages/CertificatePrintPage'
+import { FinanceiroDashboardPage } from '@/pages/FinanceiroDashboardPage'
 
 export default function App() {
   return (
@@ -32,6 +33,7 @@ export default function App() {
         <Route path="/events/new" element={<EventFormPage />} />
         <Route path="/events/:id" element={<EventDetailPage />} />
         <Route path="/events/:id/edit" element={<EventFormPage />} />
+        <Route path="/financeiro" element={<FinanceiroDashboardPage />} />
       </Route>
       <Route path="/events/:id/certificate-editor" element={<PrivateRoute><CertificateEditorPage /></PrivateRoute>} />
       <Route path="/certificate-print" element={<CertificatePrintPage />} />

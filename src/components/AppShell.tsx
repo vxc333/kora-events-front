@@ -1,5 +1,5 @@
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
-import { CalendarDays, LogOut, Plus, ScanLine, ChevronDown, BarChart3, Settings, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { CalendarDays, LogOut, Plus, ScanLine, ChevronDown, BarChart3, Settings, PanelLeftClose, PanelLeftOpen, CircleDollarSign } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useState, useEffect } from "react";
@@ -36,7 +36,10 @@ const NAVIGATION: NavSection[] = [
     },
     {
         label: "Análises",
-        items: [{ label: "Relatórios", Icon: BarChart3, soon: true }],
+        items: [
+            { label: "Financeiro", Icon: CircleDollarSign, href: "/financeiro" },
+            { label: "Relatórios", Icon: BarChart3, soon: true },
+        ],
     },
     {
         label: "Geral",
