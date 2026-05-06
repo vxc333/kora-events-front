@@ -1,73 +1,50 @@
-# React + TypeScript + Vite
+# Kora Events — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Interface web do **Kora Events**, plataforma de gerenciamento de eventos. SPA construída com **React 19** + **TypeScript** + **Vite**, com suporte a PWA para check-in offline.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Documentação
 
-## React Compiler
+| Arquivo | Conteúdo |
+|---|---|
+| [docs/01-getting-started.md](docs/01-getting-started.md) | Setup local, variáveis de ambiente, comandos |
+| [docs/02-architecture.md](docs/02-architecture.md) | Stack, estrutura de pastas, roteamento, fluxo de dados |
+| [docs/03-pages.md](docs/03-pages.md) | Todas as páginas e suas rotas |
+| [docs/04-components.md](docs/04-components.md) | Catálogo de componentes |
+| [docs/05-hooks-and-services.md](docs/05-hooks-and-services.md) | Hooks React Query e camada de serviços (API) |
+| [docs/06-types.md](docs/06-types.md) | Referência de tipos TypeScript |
+| [docs/07-conventions.md](docs/07-conventions.md) | Padrões de código, testes e design system |
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## Quick Start
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+```bash
+# 1. Instalar dependências
+npm install
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+# 2. Configurar variáveis de ambiente
+cp .env.example .env
+# edite VITE_API_URL se necessário
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# 3. Iniciar servidor de desenvolvimento
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Acesse `http://localhost:5173`.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+> O backend precisa estar rodando em `http://localhost:3333` (ver `backend/README.md`).
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+---
+
+## Scripts disponíveis
+
+| Comando | Descrição |
+|---|---|
+| `npm run dev` | Servidor de desenvolvimento com HMR |
+| `npm run build` | Build de produção (`tsc` + Vite) |
+| `npm run preview` | Preview do build de produção |
+| `npm run lint` | Linting com ESLint |
+| `npm run test` | Testes com Vitest (modo watch) |
+| `npm run test:run` | Testes em modo CI (sem watch) |
