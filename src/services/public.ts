@@ -9,6 +9,7 @@ export interface AvailableTicket {
   effectivePrice: number
   currency: string
   isHalfPrice: boolean
+  feePassthrough: boolean
   isSoldOut: boolean
   isOnSale: boolean
   quantity: number | null

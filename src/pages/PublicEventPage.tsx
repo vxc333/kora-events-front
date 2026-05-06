@@ -126,6 +126,9 @@ function TicketCard({ ticket, selected, onSelect, primaryColor }: TicketCardProp
                             {formatCurrency(ticket.effectivePrice)}
                         </p>
                     )}
+                    {ticket.feePassthrough && ticket.effectivePrice > 0 && (
+                        <p className="text-[11px] text-[#B0ACBF] mt-0.5">inclui taxa de serviço</p>
+                    )}
                 </div>
             </div>
             {selected && !ticket.isSoldOut && (
