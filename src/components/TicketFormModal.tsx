@@ -17,6 +17,7 @@ const schema = z.object({
     .optional(),
   isActive: z.boolean(),
   isHalfPrice: z.boolean(),
+  feePassthrough: z.boolean(),
 })
 
 type FormValues = {
@@ -26,6 +27,7 @@ type FormValues = {
   quantity?: number
   isActive: boolean
   isHalfPrice: boolean
+  feePassthrough: boolean
 }
 
 interface TicketFormModalProps {
@@ -46,7 +48,7 @@ export function TicketFormModal({ open, ticket, isPending, onClose, onSubmit }: 
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema) as Resolver<FormValues>,
-    defaultValues: { isActive: true, isHalfPrice: false },
+    defaultValues: { isActive: true, isHalfPrice: false, feePassthrough: false },
   })
 
   useEffect(() => {
@@ -58,9 +60,10 @@ export function TicketFormModal({ open, ticket, isPending, onClose, onSubmit }: 
         quantity: ticket.quantity ?? undefined,
         isActive: ticket.isActive,
         isHalfPrice: ticket.isHalfPrice,
+        feePassthrough: ticket.feePassthrough,
       })
     } else {
-      reset({ isActive: true, isHalfPrice: false })
+      reset({ isActive: true, isHalfPrice: false, feePassthrough: false })
     }
   }, [ticket, reset])
 
@@ -107,7 +110,7 @@ export function TicketFormModal({ open, ticket, isPending, onClose, onSubmit }: 
             />
           </div>
 
-          <div className="flex items-center gap-6">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
             <div className="flex items-center gap-2">
               <input type="checkbox" id="isActive" {...register('isActive')} className="h-4 w-4 accent-brand" />
               <label htmlFor="isActive" className="text-sm text-text">Ativo</label>
@@ -115,6 +118,10 @@ export function TicketFormModal({ open, ticket, isPending, onClose, onSubmit }: 
             <div className="flex items-center gap-2">
               <input type="checkbox" id="isHalfPrice" {...register('isHalfPrice')} className="h-4 w-4 accent-brand" />
               <label htmlFor="isHalfPrice" className="text-sm text-text">Meia-entrada</label>
+            </div>
+            <div className="flex items-center gap-2">
+              <input type="checkbox" id="feePassthrough" {...register('feePassthrough')} className="h-4 w-4 accent-brand" />
+              <label htmlFor="feePassthrough" className="text-sm text-text">Repassar taxa ao comprador</label>
             </div>
           </div>
 

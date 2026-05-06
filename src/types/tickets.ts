@@ -10,6 +10,7 @@ export interface Ticket {
   salesStartDate: string | null
   salesEndDate: string | null
   isHalfPrice: boolean
+  feePassthrough: boolean
   discountCode: string | null
   discountPercentage: number | null
   eventId: string
@@ -26,6 +27,7 @@ export interface CreateTicketInput {
   salesStartDate?: string
   salesEndDate?: string
   isHalfPrice?: boolean
+  feePassthrough?: boolean
 }
 
 export type UpdateTicketInput = Partial<CreateTicketInput>
