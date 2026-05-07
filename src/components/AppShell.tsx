@@ -1,9 +1,10 @@
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
-import { CalendarDays, LogOut, Plus, ScanLine, ChevronDown, BarChart3, Settings, PanelLeftClose, PanelLeftOpen, CircleDollarSign } from "lucide-react";
+import { CalendarDays, LogOut, Plus, ScanLine, ChevronDown, BarChart3, Settings, PanelLeftClose, PanelLeftOpen, CircleDollarSign, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useState, useEffect } from "react";
 import koraLogoDark from "@/assets/kora-events-1.png";
+import { PlanUpgradeModal } from "@/components/PlanUpgradeModal";
 
 // ── Types ─────────────────────────────────────────────────────────────
 
@@ -43,7 +44,7 @@ const NAVIGATION: NavSection[] = [
     },
     {
         label: "Geral",
-        items: [{ label: "Configurações", Icon: Settings, soon: true }],
+        items: [{ label: "Configurações", Icon: Settings, href: "/conta" }],
     },
 ];
 
@@ -186,6 +187,8 @@ export function AppShell() {
     const initial = user?.name?.charAt(0)?.toUpperCase() ?? "?";
 
     return (
+        <>
+        <PlanUpgradeModal />
         <div className="flex h-screen" style={{ background: "var(--color-bg-subtle)" }}>
             {/* Sidebar */}
             <aside
@@ -310,6 +313,37 @@ export function AppShell() {
                                 <div className="flex-1 min-w-0">
                                     <p className="text-[12.5px] font-medium leading-none truncate text-white/65">{user?.name}</p>
                                     <p className="mt-0.5 text-[10px] truncate text-white/25">{user?.email}</p>
+                                    {user?.plan === 'FREE' && (
+                                        <span
+                                            className="mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold"
+                                            style={{ background: 'rgba(251,191,36,0.12)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.22)' }}
+                                        >
+                                            <Zap className="h-2.5 w-2.5" />
+                                            Plano Free
+                                        </span>
+                                    )}
+                                    {user?.plan === 'PRO' && (
+                                        <span
+                                            className="mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold"
+                                            style={{ background: 'rgba(139,92,246,0.18)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.28)' }}
+                                        >
+                                            <Zap className="h-2.5 w-2.5" />
+                                            Plano Pro
+                                        </span>
+                                    )}
+                                    {user?.plan === 'ENTERPRISE' && (
+                                        <span
+                                            className="mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold"
+                                            style={{
+                                                background: 'linear-gradient(90deg, rgba(217,119,6,0.22) 0%, rgba(245,158,11,0.22) 100%)',
+                                                color: '#fbbf24',
+                                                border: '1px solid rgba(245,158,11,0.28)',
+                                            }}
+                                        >
+                                            <Zap className="h-2.5 w-2.5" />
+                                            Enterprise
+                                        </span>
+                                    )}
                                 </div>
                                 <button
                                     onClick={logout}
@@ -347,5 +381,6 @@ export function AppShell() {
                 <Outlet />
             </main>
         </div>
+        </>
     );
 }
