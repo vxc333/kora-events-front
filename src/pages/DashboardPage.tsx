@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useEvents } from '@/hooks/useEvents'
+import { EngagementWidget } from '@/components/EngagementWidget'
 import type { EventStatus } from '@/types/events'
 
 const LIMIT = 10
@@ -84,6 +85,9 @@ export function DashboardPage() {
 
       {/* Page content */}
       <div className="p-8 space-y-6">
+        {/* Engagement widget */}
+        <EngagementWidget />
+
         {/* Filters */}
         <div className="flex flex-wrap gap-2">
           {FILTERS.map((f) => (

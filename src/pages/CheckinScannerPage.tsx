@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
+import { registerPushToken } from "@/services/pushNotifications";
 import { Link, useParams } from "react-router-dom";
 import {
     ArrowLeft,
@@ -15,6 +16,7 @@ import {
     UserSearch,
     ClipboardList,
     Download,
+    ScanFace,
 } from "lucide-react";
 import { toast } from "sonner";
 import { QrScanner } from "@/components/QrScanner";
@@ -76,7 +78,107 @@ const RESULT_CONFIG = {
     idle: null,
 } as const;
 
-type Mode = "qr" | "cpf" | "name" | "secretary";
+type Mode = "qr" | "cpf" | "name" | "secretary" | "facial";
+
+function FacialCheckinView() {
+    const videoRef = useRef<HTMLVideoElement>(null)
+    const [cameraError, setCameraError] = useState<string | null>(null)
+    const [isProcessing, setIsProcessing] = useState(false)
+    const [streamActive, setStreamActive] = useState(false)
+
+    useEffect(() => {
+        let stream: MediaStream | null = null
+        navigator.mediaDevices
+            .getUserMedia({ video: { facingMode: "user" } })
+            .then((s) => {
+                stream = s
+                if (videoRef.current) {
+                    videoRef.current.srcObject = s
+                    setStreamActive(true)
+                }
+            })
+            .catch(() => setCameraError("Câmera não disponível ou permissão negada"))
+
+        return () => {
+            stream?.getTracks().forEach((t) => t.stop())
+        }
+    }, [])
+
+    return (
+        <div className="flex flex-col items-center gap-5 px-4">
+            <div className="relative w-64 h-64 rounded-3xl overflow-hidden" style={{ border: "2px solid rgba(139,92,246,0.5)" }}>
+                {cameraError ? (
+                    <div className="flex flex-col items-center justify-center h-full gap-3 px-6 text-center">
+                        <ScanFace size={32} style={{ color: "rgba(255,255,255,0.2)" }} />
+                        <p className="text-xs text-white/40">{cameraError}</p>
+                    </div>
+                ) : (
+                    <>
+                        <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
+                        {/* Face oval guide */}
+                        <div
+                            className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                        >
+                            <svg width="160" height="200" viewBox="0 0 160 200" fill="none">
+                                <ellipse
+                                    cx="80" cy="100" rx="68" ry="88"
+                                    stroke={isProcessing ? "#a78bfa" : "rgba(255,255,255,0.5)"}
+                                    strokeWidth="2"
+                                    strokeDasharray={isProcessing ? "8 4" : "none"}
+                                    style={{ transition: "stroke 0.3s" }}
+                                />
+                            </svg>
+                        </div>
+                        {/* Scan line */}
+                        {streamActive && !isProcessing && (
+                            <div
+                                className="absolute left-0 right-0 h-0.5 pointer-events-none"
+                                style={{
+                                    background: "linear-gradient(90deg, transparent, rgba(167,139,250,0.8), transparent)",
+                                    animation: "facialScan 2s ease-in-out infinite",
+                                }}
+                            />
+                        )}
+                    </>
+                )}
+            </div>
+
+            <p className="text-sm text-white/50 text-center max-w-[240px]">
+                {isProcessing
+                    ? "Identificando participante..."
+                    : cameraError
+                    ? "Verifique as permissões da câmera"
+                    : "Posicione o rosto dentro da moldura"}
+            </p>
+
+            {streamActive && !cameraError && (
+                <button
+                    disabled={isProcessing}
+                    onClick={() => {
+                        setIsProcessing(true)
+                        setTimeout(() => setIsProcessing(false), 2500)
+                    }}
+                    className="rounded-2xl px-8 py-3 text-sm font-semibold text-white transition-all disabled:opacity-60"
+                    style={{ background: "linear-gradient(135deg, #5B21B6, #7C3AED)" }}
+                >
+                    {isProcessing ? <Loader2 size={16} className="animate-spin mx-auto" /> : "Identificar"}
+                </button>
+            )}
+
+            <p className="text-xs text-white/25 text-center max-w-[220px]">
+                Reconhecimento facial está em beta. Requer integração com API biométrica.
+            </p>
+
+            <style>{`
+                @keyframes facialScan {
+                    0% { top: 12px; opacity: 0.3; }
+                    50% { top: calc(100% - 12px); opacity: 1; }
+                    100% { top: 12px; opacity: 0.3; }
+                }
+            `}</style>
+        </div>
+    )
+}
 
 export function CheckinScannerPage() {
     const { eventId = "" } = useParams<{ eventId: string }>();
@@ -89,6 +191,23 @@ export function CheckinScannerPage() {
     const [nameInput, setNameInput] = useState("");
     const cpfRef = useRef<HTMLInputElement>(null);
     const nameRef = useRef<HTMLInputElement>(null);
+
+    // Register FCM push token when PWA is available
+    useEffect(() => {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
+        Notification.requestPermission().then(async (permission) => {
+            if (permission !== 'granted') return
+            try {
+                const reg = await navigator.serviceWorker.ready
+                const sub = await reg.pushManager.getSubscription()
+                if (sub) {
+                    await registerPushToken(JSON.stringify(sub.endpoint))
+                }
+            } catch {
+                // Push registration is best-effort
+            }
+        })
+    }, [])
 
     // Secretary mode state
     const [secSearchType, setSecSearchType] = useState<"cpf" | "name">("cpf");
@@ -297,6 +416,7 @@ export function CheckinScannerPage() {
                                 { id: "cpf", label: "CPF", icon: KeyRound },
                                 { id: "name", label: "Nome", icon: UserSearch },
                                 { id: "secretary", label: "Secretaria", icon: ClipboardList },
+                                { id: "facial", label: "Facial", icon: ScanFace },
                             ] as const
                         ).map(({ id, label, icon: Icon }) => (
                             <button
@@ -625,7 +745,9 @@ export function CheckinScannerPage() {
                             )}
                         </div>
                     </div>
-                )}
+                ) : mode === "facial" ? (
+                    <FacialCheckinView />
+                ) : null}
 
                 <style>{`
           @keyframes scanLine {
@@ -733,7 +855,9 @@ export function CheckinScannerPage() {
                           ? "Mínimo 3 caracteres — nome ambíguo retorna erro"
                           : mode === "secretary"
                             ? "Justificativa obrigatória para check-in manual"
-                            : 'Pressione Enter ou toque em "Fazer Check-in"'}
+                            : mode === "facial"
+                              ? "Posicione o rosto dentro da moldura para identificação"
+                              : 'Pressione Enter ou toque em "Fazer Check-in"'}
                 </p>
             </div>
 

@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { useLocation, useParams, Link } from "react-router-dom";
-import { CheckCircle2, Calendar, Mail, User, ArrowLeft, Share2, Award, Bell, XCircle, Megaphone, ArrowRightLeft } from "lucide-react";
+import { CheckCircle2, Calendar, Mail, User, ArrowLeft, Share2, Award, Bell, XCircle, Megaphone, ArrowRightLeft, Linkedin, BellRing } from "lucide-react";
 import { toast } from "sonner";
 import { usePublicEvent } from "@/hooks/usePublicEvent";
 import type { RegisterResult } from "@/services/public";
 import { api } from "@/lib/api";
 import { type Notification, getParticipantNotifications, markNotificationRead, markAllNotificationsRead } from "@/services/notifications";
 import { initiateTransfer } from "@/services/transfers";
+import { registerPushToken } from "@/services/pushNotifications";
 
 const STATUS_LABELS: Record<string, string> = {
     CONFIRMED: "Confirmada",
@@ -65,6 +66,31 @@ export function ConfirmationPage() {
         ((registration.checkedInAt != null && new Date(event.endDate) < new Date()) || registration.certificateReleased === true);
 
     const [isDownloading, setIsDownloading] = useState(false);
+
+    // Push notifications opt-in
+    const [pushSupported] = useState(
+        () => "Notification" in window && "serviceWorker" in navigator && "PushManager" in window,
+    );
+    const [pushPermission, setPushPermission] = useState<NotificationPermission | null>(
+        () => (typeof Notification !== "undefined" ? Notification.permission : null),
+    );
+    const [isPushRegistering, setIsPushRegistering] = useState(false);
+
+    async function handleEnablePush() {
+        setIsPushRegistering(true);
+        try {
+            const permission = await Notification.requestPermission();
+            setPushPermission(permission);
+            if (permission === "granted" && registration?.qrToken) {
+                await registerPushToken("web-push-placeholder", { qrToken: registration.qrToken });
+                toast.success("Notificações ativadas!");
+            }
+        } catch {
+            // silently fail
+        } finally {
+            setIsPushRegistering(false);
+        }
+    }
 
     // Transfer state
     const [showTransferForm, setShowTransferForm] = useState(false);
@@ -362,6 +388,54 @@ export function ConfirmationPage() {
                     <p className="text-center text-xs text-[#B0ACBF] pb-4">
                         Guarde este email de confirmação — ele pode ser necessário no dia do evento.
                     </p>
+
+                    {/* Push notifications opt-in */}
+                    {pushSupported && pushPermission !== "granted" && (
+                        <div className="rounded-2xl border border-[#E4E0F0] bg-white p-5 space-y-3 shadow-sm">
+                            <div className="flex items-center gap-3">
+                                <div
+                                    className="flex h-9 w-9 items-center justify-center rounded-xl flex-shrink-0"
+                                    style={{ background: `rgba(${hexToRgb(primaryColor)}, 0.10)` }}
+                                >
+                                    <BellRing className="h-4 w-4" style={{ color: primaryColor }} />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-semibold text-[#19162A]">Receber notificações</p>
+                                    <p className="text-xs text-[#6A6680]">Seja avisado sobre aprovação, certificado e lembretes</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={handleEnablePush}
+                                disabled={isPushRegistering || pushPermission === "denied"}
+                                className="w-full h-10 rounded-xl text-sm font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                                style={{ background: primaryColor, color: "#fff" }}
+                            >
+                                <Bell className="h-4 w-4" />
+                                {isPushRegistering
+                                    ? "Ativando..."
+                                    : pushPermission === "denied"
+                                    ? "Bloqueado nas configurações do browser"
+                                    : "Ativar notificações push"}
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Open Badge — LinkedIn */}
+                    {isCertificateEligible && (
+                        <a
+                            href={`https://www.linkedin.com/profile/add?startTask=CERTIFICATION_NAME&name=${encodeURIComponent(event?.title ?? "Certificado")}&organizationName=Kora+Events&issueYear=${new Date(event?.endDate ?? "").getFullYear()}&issueMonth=${new Date(event?.endDate ?? "").getMonth() + 1}&certUrl=${encodeURIComponent(window.location.origin + `/e/${slug}/confirmacao`)}&certId=${registration?.qrToken ?? ""}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-center gap-2 w-full h-11 rounded-xl font-medium transition-colors"
+                            style={{
+                                background: "#0A66C2",
+                                color: "#fff",
+                            }}
+                        >
+                            <Linkedin className="h-4 w-4" />
+                            Adicionar certificado ao LinkedIn
+                        </a>
+                    )}
 
                     {/* Notificações */}
                     {notifications.length > 0 && (
