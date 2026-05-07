@@ -18,11 +18,16 @@ import { CertificateEditorPage } from '@/pages/CertificateEditorPage'
 import { CertificatePrintPage } from '@/pages/CertificatePrintPage'
 import { FinanceiroDashboardPage } from '@/pages/FinanceiroDashboardPage'
 import { WhiteLabelSettingsPage } from '@/pages/WhiteLabelSettingsPage'
+import { MarketplacePage } from '@/pages/MarketplacePage'
+import { CoursePlayerPage } from '@/pages/CoursePlayerPage'
+import { ParticipantPortalPage } from '@/pages/ParticipantPortalPage'
 
 export default function App() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
+      <Route path="/eventos" element={<MarketplacePage />} />
+      <Route path="/portal" element={<ParticipantPortalPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -36,6 +41,7 @@ export default function App() {
         <Route path="/events/:id/edit" element={<EventFormPage />} />
         <Route path="/financeiro" element={<FinanceiroDashboardPage />} />
         <Route path="/conta" element={<WhiteLabelSettingsPage />} />
+        <Route path="/cursos/:id" element={<CoursePlayerPage />} />
       </Route>
       <Route path="/events/:id/certificate-editor" element={<PrivateRoute><CertificateEditorPage /></PrivateRoute>} />
       <Route path="/certificate-print" element={<CertificatePrintPage />} />
