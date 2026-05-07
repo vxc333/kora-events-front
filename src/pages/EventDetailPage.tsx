@@ -26,6 +26,8 @@ import {
     QrCode,
     Award,
     ExternalLink,
+    CheckCircle,
+    XCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -44,9 +46,13 @@ import {
     useDownloadAttendanceReport,
     useUpdatePageBuilder,
 } from "@/hooks/useEvent";
+import { useQueryClient } from "@tanstack/react-query";
 import { PageBuilderTab } from "@/components/PageBuilderTab";
 import { RegistrationFieldsTab } from "@/components/RegistrationFieldsTab";
 import { BroadcastsTab } from "@/components/BroadcastsTab";
+import { EventSessionsTab } from "@/components/EventSessionsTab";
+import { MembersTab } from "@/components/MembersTab";
+import { approveParticipant, rejectParticipant } from "@/services/participants";
 import { useTickets, useCreateTicket, useUpdateTicket, useDeleteTicket } from "@/hooks/useTickets";
 import { useCoupons, useCreateCoupon, useUpdateCoupon, useDeactivateCoupon } from "@/hooks/useCoupons";
 import {
@@ -108,6 +114,7 @@ function formatCurrency(value: number): string {
 type TabId =
     | "details"
     | "tickets"
+    | "sessoes"
     | "participants"
     | "campos"
     | "coupons"
@@ -115,11 +122,13 @@ type TabId =
     | "signers"
     | "certificate"
     | "page"
-    | "comunicacao";
+    | "comunicacao"
+    | "membros";
 
 const TABS: Array<{ id: TabId; label: string }> = [
     { id: "details", label: "Detalhes" },
     { id: "tickets", label: "Ingressos" },
+    { id: "sessoes", label: "Sessões" },
     { id: "participants", label: "Participantes" },
     { id: "campos", label: "Campos" },
     { id: "coupons", label: "Cupons" },
@@ -128,10 +137,12 @@ const TABS: Array<{ id: TabId; label: string }> = [
     { id: "certificate", label: "Certificado" },
     { id: "page", label: "Página" },
     { id: "comunicacao", label: "Comunicação" },
+    { id: "membros", label: "Membros" },
 ];
 
 export function EventDetailPage() {
     const { id = "" } = useParams<{ id: string }>();
+    const queryClient = useQueryClient();
     const { event, isLoading } = useEvent(id);
     const { publish, isPending: isPublishing } = usePublishEvent(id);
     const { cancel, isPending: isCancelling } = useCancelEvent(id);
@@ -625,6 +636,9 @@ export function EventDetailPage() {
                 </div>
             )}
 
+            {/* Tab: Sessões */}
+            {activeTab === "sessoes" && <EventSessionsTab eventId={id} />}
+
             {/* Tab: Participantes */}
             {activeTab === "participants" && (
                 <div className="space-y-4">
@@ -727,6 +741,44 @@ export function EventDetailPage() {
                                         >
                                             {PARTICIPANT_STATUS_LABELS[p.status]}
                                         </span>
+                                        {p.status === "PENDING" && (
+                                            <>
+                                                <Button
+                                                    variant="secondary"
+                                                    size="sm"
+                                                    className="gap-1.5 text-emerald-600"
+                                                    onClick={async () => {
+                                                        try {
+                                                            await approveParticipant(id, p.id);
+                                                            queryClient.invalidateQueries({ queryKey: ["participants", id] });
+                                                            toast.success("Aprovado!");
+                                                        } catch {
+                                                            toast.error("Erro ao aprovar participante.");
+                                                        }
+                                                    }}
+                                                >
+                                                    <CheckCircle className="h-3.5 w-3.5" />
+                                                    Aprovar
+                                                </Button>
+                                                <Button
+                                                    variant="danger"
+                                                    size="sm"
+                                                    className="gap-1.5"
+                                                    onClick={async () => {
+                                                        try {
+                                                            await rejectParticipant(id, p.id);
+                                                            queryClient.invalidateQueries({ queryKey: ["participants", id] });
+                                                            toast.success("Rejeitado.");
+                                                        } catch {
+                                                            toast.error("Erro ao rejeitar participante.");
+                                                        }
+                                                    }}
+                                                >
+                                                    <XCircle className="h-3.5 w-3.5" />
+                                                    Rejeitar
+                                                </Button>
+                                            </>
+                                        )}
                                         <Button variant="secondary" size="sm" onClick={() => openEditParticipantModal(p)}>
                                             Editar
                                         </Button>
@@ -1069,6 +1121,9 @@ export function EventDetailPage() {
 
             {/* Tab: Comunicação */}
             {activeTab === "comunicacao" && <BroadcastsTab eventId={id} />}
+
+            {/* Tab: Membros */}
+            {activeTab === "membros" && <MembersTab eventId={id} />}
 
             {/* Modals */}
             <TicketFormModal
