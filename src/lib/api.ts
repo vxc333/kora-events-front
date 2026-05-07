@@ -14,6 +14,10 @@ export function handleAuthError(error: AxiosError): Promise<never> {
     localStorage.removeItem('refresh_token')
     window.location.href = '/login'
   }
+  const data = (error.response?.data as { code?: string } | null)
+  if (error.response?.status === 403 && data?.code === 'PLAN_UPGRADE_REQUIRED') {
+    window.dispatchEvent(new CustomEvent('plan-upgrade-required'))
+  }
   return Promise.reject(error)
 }
 
