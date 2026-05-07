@@ -1,17 +1,21 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Calendar, Clock, MapPin, Laptop, Users, Tag, Ticket, CheckCircle2, AlertCircle, ChevronRight } from "lucide-react";
 import { usePublicEvent, useAvailableTickets, useRegisterForEvent } from "@/hooks/usePublicEvent";
+import { useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
 import type { AvailableTicket } from "@/services/public";
+import { joinWaitlist } from "@/services/waitlist";
+import type { WaitlistInput } from "@/services/waitlist";
 import { PageBlockRenderer } from "@/components/BlockRenderers";
 import { DEFAULT_PAGE_SETTINGS } from "@/types/page-builder";
 import { getMediaUrl } from "@/lib/utils";
 
 function validateCpf(cpf: string): boolean {
-    const digits = cpf.replace(/\D/g, '');
+    const digits = cpf.replace(/\D/g, "");
     if (digits.length !== 11) return false;
     if (/^(\d)\1+$/.test(digits)) return false;
     let sum = 0;
@@ -27,7 +31,7 @@ function validateCpf(cpf: string): boolean {
 }
 
 function formatCpf(value: string): string {
-    const digits = value.replace(/\D/g, '').slice(0, 11);
+    const digits = value.replace(/\D/g, "").slice(0, 11);
     if (digits.length <= 3) return digits;
     if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
     if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
@@ -35,8 +39,8 @@ function formatCpf(value: string): string {
 }
 
 function formatPhone(value: string): string {
-    const digits = value.replace(/\D/g, '').slice(0, 11);
-    if (digits.length <= 2) return digits.length ? `(${digits}` : '';
+    const digits = value.replace(/\D/g, "").slice(0, 11);
+    if (digits.length <= 2) return digits.length ? `(${digits}` : "";
     if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
     if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
     return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
@@ -65,6 +69,50 @@ function hexToRgb(hex: string) {
     const g = parseInt(hex.slice(3, 5), 16);
     const b = parseInt(hex.slice(5, 7), 16);
     return `${r}, ${g}, ${b}`;
+}
+
+function CountdownTimer({ targetDate }: { targetDate: string }) {
+    const [timeLeft, setTimeLeft] = useState<number>(() => {
+        return Math.max(0, Math.floor((new Date(targetDate).getTime() - Date.now()) / 1000));
+    });
+    const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    useEffect(() => {
+        if (timeLeft <= 0) return;
+        intervalRef.current = setInterval(() => {
+            setTimeLeft((prev) => {
+                if (prev <= 1) {
+                    if (intervalRef.current) clearInterval(intervalRef.current);
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+        return () => {
+            if (intervalRef.current) clearInterval(intervalRef.current);
+        };
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    if (timeLeft <= 0) {
+        return <p className="text-xs text-[#B0ACBF] mt-2 flex items-center gap-1">⏱ Encerrado</p>;
+    }
+
+    const days = Math.floor(timeLeft / 86400);
+    const hours = Math.floor((timeLeft % 86400) / 3600);
+    const minutes = Math.floor((timeLeft % 3600) / 60);
+    const seconds = timeLeft % 60;
+
+    let label: string;
+    if (timeLeft >= 3600) {
+        label =
+            days > 0
+                ? `${days}d ${String(hours).padStart(2, "0")}h ${String(minutes).padStart(2, "0")}m`
+                : `${String(hours).padStart(2, "0")}h ${String(minutes).padStart(2, "0")}m`;
+    } else {
+        label = `${String(minutes).padStart(2, "0")}m ${String(seconds).padStart(2, "0")}s`;
+    }
+
+    return <p className="text-xs font-medium text-amber-600 mt-2 flex items-center gap-1">⏱ Termina em {label}</p>;
 }
 
 interface TicketCardProps {
@@ -129,6 +177,9 @@ function TicketCard({ ticket, selected, onSelect, primaryColor }: TicketCardProp
                     {ticket.feePassthrough && ticket.effectivePrice > 0 && (
                         <p className="text-[11px] text-[#B0ACBF] mt-0.5">inclui taxa de serviço</p>
                     )}
+                    {ticket.ticketType === "EARLY_BIRD" && ticket.salesEndDate && ticket.isOnSale && (
+                        <CountdownTimer targetDate={ticket.salesEndDate} />
+                    )}
                 </div>
             </div>
             {selected && !ticket.isSoldOut && (
@@ -152,6 +203,52 @@ export function PublicEventPage() {
     const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
     const primaryColor = event?.primaryColor ?? "#5B21B6";
     const rgb = hexToRgb(primaryColor);
+
+    // Waitlist state: which ticket's form is open
+    const [waitlistOpenTicketId, setWaitlistOpenTicketId] = useState<string | null>(null);
+    const [waitlistForm, setWaitlistForm] = useState({ name: "", email: "", cpf: "", phone: "" });
+    const [waitlistErrors, setWaitlistErrors] = useState<Partial<Record<keyof typeof waitlistForm, string>>>({});
+
+    const waitlistMutation = useMutation({
+        mutationFn: ({ ticketId, data }: { ticketId: string; data: WaitlistInput }) => joinWaitlist(event?.id ?? "", data),
+        onSuccess: () => {
+            toast.success("Você entrou na lista de espera! 🎉");
+            setWaitlistOpenTicketId(null);
+            setWaitlistForm({ name: "", email: "", cpf: "", phone: "" });
+            setWaitlistErrors({});
+        },
+        onError: (err: unknown) => {
+            const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+            toast.error(msg ?? "Erro ao entrar na lista de espera. Tente novamente.");
+        },
+    });
+
+    function toggleWaitlistForm(ticketId: string) {
+        setWaitlistOpenTicketId((prev) => (prev === ticketId ? null : ticketId));
+        setWaitlistForm({ name: "", email: "", cpf: "", phone: "" });
+        setWaitlistErrors({});
+    }
+
+    function validateWaitlistForm() {
+        const errs: Partial<Record<keyof typeof waitlistForm, string>> = {};
+        if (!waitlistForm.name.trim() || waitlistForm.name.trim().length < 2) errs.name = "Nome obrigatório";
+        if (!waitlistForm.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(waitlistForm.email)) errs.email = "Email inválido";
+        if (!validateCpf(waitlistForm.cpf)) errs.cpf = "CPF inválido";
+        if (waitlistForm.phone.replace(/\D/g, "").length < 10) errs.phone = "Telefone obrigatório";
+        return errs;
+    }
+
+    function submitWaitlist(ticketId: string) {
+        const errs = validateWaitlistForm();
+        if (Object.keys(errs).length > 0) {
+            setWaitlistErrors(errs);
+            return;
+        }
+        waitlistMutation.mutate({
+            ticketId,
+            data: { ticketId, ...waitlistForm },
+        });
+    }
 
     const {
         register,
@@ -208,9 +305,9 @@ export function PublicEventPage() {
     const sortedBlocks = (event.pageBlocks ?? []).slice().sort((a, b) => a.order - b.order);
 
     const FONT_FAMILY: Record<typeof pageSettings.titleFont, string> = {
-        'dm-serif': '"DM Serif Display", Georgia, serif',
-        'inter': '"Inter", system-ui, sans-serif',
-        'playfair': '"Playfair Display", Georgia, serif',
+        "dm-serif": '"DM Serif Display", Georgia, serif',
+        inter: '"Inter", system-ui, sans-serif',
+        playfair: '"Playfair Display", Georgia, serif',
     };
     const titleFont = FONT_FAMILY[pageSettings.titleFont];
 
@@ -249,7 +346,7 @@ export function PublicEventPage() {
     return (
         <div className="min-h-screen" style={{ backgroundColor: pageSettings.bgColor }}>
             {/* Hero — banner layout */}
-            {pageSettings.heroLayout === 'banner' && (
+            {pageSettings.heroLayout === "banner" && (
                 <div
                     className="relative w-full"
                     style={{
@@ -259,7 +356,11 @@ export function PublicEventPage() {
                 >
                     {event.bannerUrl && (
                         <>
-                            <img src={getMediaUrl(event.bannerUrl)!} alt={event.title} className="absolute inset-0 w-full h-full object-cover" />
+                            <img
+                                src={getMediaUrl(event.bannerUrl)!}
+                                alt={event.title}
+                                className="absolute inset-0 w-full h-full object-cover"
+                            />
                             <div
                                 className="absolute inset-0"
                                 style={{ background: `linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.6) 100%)` }}
@@ -267,7 +368,13 @@ export function PublicEventPage() {
                         </>
                     )}
                     <div className="relative mx-auto px-4 py-16 flex flex-col gap-4">
-                        {event.logoUrl && <img src={getMediaUrl(event.logoUrl)!} alt="Logo" className="h-14 w-auto object-contain self-start rounded-lg" />}
+                        {event.logoUrl && (
+                            <img
+                                src={getMediaUrl(event.logoUrl)!}
+                                alt="Logo"
+                                className="h-14 w-auto object-contain self-start rounded-lg"
+                            />
+                        )}
                         <h1 className="text-3xl sm:text-4xl font-bold text-white leading-tight" style={{ fontFamily: titleFont }}>
                             {event.title}
                         </h1>
@@ -277,11 +384,15 @@ export function PublicEventPage() {
             )}
 
             {/* Hero — split layout */}
-            {pageSettings.heroLayout === 'split' && (
+            {pageSettings.heroLayout === "split" && (
                 <div className="flex flex-col md:flex-row" style={{ minHeight: 340 }}>
                     <div className="relative md:w-1/2 min-h-[220px] md:min-h-0">
                         {event.bannerUrl ? (
-                            <img src={getMediaUrl(event.bannerUrl)!} alt={event.title} className="absolute inset-0 w-full h-full object-cover" />
+                            <img
+                                src={getMediaUrl(event.bannerUrl)!}
+                                alt={event.title}
+                                className="absolute inset-0 w-full h-full object-cover"
+                            />
                         ) : (
                             <div
                                 className="absolute inset-0"
@@ -290,7 +401,9 @@ export function PublicEventPage() {
                         )}
                     </div>
                     <div className="md:w-1/2 flex flex-col justify-center p-8 md:p-12 bg-white">
-                        {event.logoUrl && <img src={getMediaUrl(event.logoUrl)!} alt="Logo" className="h-12 w-auto object-contain self-start mb-4" />}
+                        {event.logoUrl && (
+                            <img src={getMediaUrl(event.logoUrl)!} alt="Logo" className="h-12 w-auto object-contain self-start mb-4" />
+                        )}
                         <h1 className="text-3xl sm:text-4xl font-bold text-[#19162A] leading-tight" style={{ fontFamily: titleFont }}>
                             {event.title}
                         </h1>
@@ -325,15 +438,211 @@ export function PublicEventPage() {
                             <h2 className="text-xl font-semibold text-[#19162A]">Ingressos</h2>
                         </div>
                         <div className="space-y-3">
-                            {tickets.map((ticket) => (
-                                <TicketCard
-                                    key={ticket.id}
-                                    ticket={ticket}
-                                    selected={selectedTicketId === ticket.id}
-                                    onSelect={() => setSelectedTicketId(ticket.id)}
-                                    primaryColor={primaryColor}
-                                />
-                            ))}
+                            {tickets.map((ticket) => {
+                                const showWaitlist = ticket.isSoldOut && ticket.waitlistEnabled;
+                                const waitlistOpen = waitlistOpenTicketId === ticket.id;
+                                return (
+                                    <div key={ticket.id} className="flex flex-col gap-2">
+                                        <TicketCard
+                                            ticket={ticket}
+                                            selected={selectedTicketId === ticket.id}
+                                            onSelect={() => !ticket.isSoldOut && setSelectedTicketId(ticket.id)}
+                                            primaryColor={primaryColor}
+                                        />
+
+                                        {showWaitlist && (
+                                            <>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => toggleWaitlistForm(ticket.id)}
+                                                    className="w-full h-10 rounded-xl border-2 font-medium text-sm transition-all"
+                                                    style={{
+                                                        borderColor: primaryColor,
+                                                        color: primaryColor,
+                                                        background: waitlistOpen ? `rgba(${rgb}, 0.06)` : "transparent",
+                                                    }}
+                                                >
+                                                    {waitlistOpen ? "Cancelar" : "Entrar na lista de espera"}
+                                                </button>
+
+                                                {waitlistOpen && (
+                                                    <div
+                                                        className="rounded-xl border p-4 space-y-3"
+                                                        style={{ borderColor: "#E4E0F0", background: "#FDFCFF" }}
+                                                    >
+                                                        <p className="text-sm font-medium text-[#19162A]">
+                                                            Lista de espera — {ticket.name}
+                                                        </p>
+                                                        <div className="grid sm:grid-cols-2 gap-3">
+                                                            {/* Nome */}
+                                                            <div className="flex flex-col gap-1">
+                                                                <label className="text-xs font-medium text-[#19162A]">
+                                                                    Nome completo *
+                                                                </label>
+                                                                <input
+                                                                    value={waitlistForm.name}
+                                                                    onChange={(e) => {
+                                                                        setWaitlistForm((f) => ({ ...f, name: e.target.value }));
+                                                                        setWaitlistErrors((er) => ({ ...er, name: undefined }));
+                                                                    }}
+                                                                    placeholder="João da Silva"
+                                                                    className="h-10 w-full rounded-xl border border-[#E4E0F0] bg-white px-3 text-sm text-[#19162A] placeholder:text-[#B0ACBF] focus:outline-none"
+                                                                    style={{
+                                                                        boxShadow: waitlistErrors.name ? "0 0 0 2px #DC2626" : undefined,
+                                                                    }}
+                                                                    onFocus={(e) => {
+                                                                        e.target.style.boxShadow = `0 0 0 2px ${primaryColor}`;
+                                                                    }}
+                                                                    onBlur={(e) => {
+                                                                        e.target.style.boxShadow = waitlistErrors.name
+                                                                            ? "0 0 0 2px #DC2626"
+                                                                            : "none";
+                                                                    }}
+                                                                />
+                                                                {waitlistErrors.name && (
+                                                                    <p className="text-xs text-[#DC2626] flex items-center gap-1">
+                                                                        <AlertCircle className="h-3 w-3" />
+                                                                        {waitlistErrors.name}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+
+                                                            {/* Email */}
+                                                            <div className="flex flex-col gap-1">
+                                                                <label className="text-xs font-medium text-[#19162A]">Email *</label>
+                                                                <input
+                                                                    type="email"
+                                                                    value={waitlistForm.email}
+                                                                    onChange={(e) => {
+                                                                        setWaitlistForm((f) => ({ ...f, email: e.target.value }));
+                                                                        setWaitlistErrors((er) => ({ ...er, email: undefined }));
+                                                                    }}
+                                                                    placeholder="joao@email.com"
+                                                                    className="h-10 w-full rounded-xl border border-[#E4E0F0] bg-white px-3 text-sm text-[#19162A] placeholder:text-[#B0ACBF] focus:outline-none"
+                                                                    style={{
+                                                                        boxShadow: waitlistErrors.email ? "0 0 0 2px #DC2626" : undefined,
+                                                                    }}
+                                                                    onFocus={(e) => {
+                                                                        e.target.style.boxShadow = `0 0 0 2px ${primaryColor}`;
+                                                                    }}
+                                                                    onBlur={(e) => {
+                                                                        e.target.style.boxShadow = waitlistErrors.email
+                                                                            ? "0 0 0 2px #DC2626"
+                                                                            : "none";
+                                                                    }}
+                                                                />
+                                                                {waitlistErrors.email && (
+                                                                    <p className="text-xs text-[#DC2626] flex items-center gap-1">
+                                                                        <AlertCircle className="h-3 w-3" />
+                                                                        {waitlistErrors.email}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+
+                                                            {/* CPF */}
+                                                            <div className="flex flex-col gap-1">
+                                                                <label className="text-xs font-medium text-[#19162A]">CPF *</label>
+                                                                <input
+                                                                    value={waitlistForm.cpf}
+                                                                    onChange={(e) => {
+                                                                        const masked = formatCpf(e.target.value);
+                                                                        setWaitlistForm((f) => ({ ...f, cpf: masked }));
+                                                                        setWaitlistErrors((er) => ({ ...er, cpf: undefined }));
+                                                                    }}
+                                                                    placeholder="000.000.000-00"
+                                                                    inputMode="numeric"
+                                                                    className="h-10 w-full rounded-xl border border-[#E4E0F0] bg-white px-3 text-sm text-[#19162A] placeholder:text-[#B0ACBF] focus:outline-none"
+                                                                    style={{
+                                                                        boxShadow: waitlistErrors.cpf ? "0 0 0 2px #DC2626" : undefined,
+                                                                    }}
+                                                                    onFocus={(e) => {
+                                                                        e.target.style.boxShadow = `0 0 0 2px ${primaryColor}`;
+                                                                    }}
+                                                                    onBlur={(e) => {
+                                                                        e.target.style.boxShadow = waitlistErrors.cpf
+                                                                            ? "0 0 0 2px #DC2626"
+                                                                            : "none";
+                                                                    }}
+                                                                />
+                                                                {waitlistErrors.cpf && (
+                                                                    <p className="text-xs text-[#DC2626] flex items-center gap-1">
+                                                                        <AlertCircle className="h-3 w-3" />
+                                                                        {waitlistErrors.cpf}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+
+                                                            {/* Telefone */}
+                                                            <div className="flex flex-col gap-1">
+                                                                <label className="text-xs font-medium text-[#19162A]">Telefone *</label>
+                                                                <input
+                                                                    value={waitlistForm.phone}
+                                                                    onChange={(e) => {
+                                                                        const masked = formatPhone(e.target.value);
+                                                                        setWaitlistForm((f) => ({ ...f, phone: masked }));
+                                                                        setWaitlistErrors((er) => ({ ...er, phone: undefined }));
+                                                                    }}
+                                                                    placeholder="(11) 91234-5678"
+                                                                    inputMode="numeric"
+                                                                    className="h-10 w-full rounded-xl border border-[#E4E0F0] bg-white px-3 text-sm text-[#19162A] placeholder:text-[#B0ACBF] focus:outline-none"
+                                                                    style={{
+                                                                        boxShadow: waitlistErrors.phone ? "0 0 0 2px #DC2626" : undefined,
+                                                                    }}
+                                                                    onFocus={(e) => {
+                                                                        e.target.style.boxShadow = `0 0 0 2px ${primaryColor}`;
+                                                                    }}
+                                                                    onBlur={(e) => {
+                                                                        e.target.style.boxShadow = waitlistErrors.phone
+                                                                            ? "0 0 0 2px #DC2626"
+                                                                            : "none";
+                                                                    }}
+                                                                />
+                                                                {waitlistErrors.phone && (
+                                                                    <p className="text-xs text-[#DC2626] flex items-center gap-1">
+                                                                        <AlertCircle className="h-3 w-3" />
+                                                                        {waitlistErrors.phone}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => submitWaitlist(ticket.id)}
+                                                            disabled={waitlistMutation.isPending}
+                                                            className="w-full h-10 rounded-xl font-semibold text-white text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                                            style={{ background: primaryColor }}
+                                                        >
+                                                            {waitlistMutation.isPending ? (
+                                                                <>
+                                                                    <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                                                        <circle
+                                                                            className="opacity-25"
+                                                                            cx="12"
+                                                                            cy="12"
+                                                                            r="10"
+                                                                            stroke="currentColor"
+                                                                            strokeWidth="4"
+                                                                        />
+                                                                        <path
+                                                                            className="opacity-75"
+                                                                            fill="currentColor"
+                                                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                                                                        />
+                                                                    </svg>
+                                                                    Aguarde...
+                                                                </>
+                                                            ) : (
+                                                                "Confirmar entrada na lista"
+                                                            )}
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+                                );
+                            })}
                         </div>
                         {requiresTicket && !selectedTicketId && (
                             <p className="text-xs text-[#6A6680] mt-2 flex items-center gap-1">
