@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { EventDetailPage } from './EventDetailPage'
 import * as useEventModule from '@/hooks/useEvent'
@@ -48,6 +49,7 @@ function setupMocks(event = mockEvent, tickets: Ticket[] = []) {
   vi.mocked(useEventModule.useCancelEvent).mockReturnValue({ cancel: mockCancel, isPending: false })
   vi.mocked(useEventModule.useUploadEventImage).mockReturnValue({ upload: vi.fn(), isPending: false })
   vi.mocked(useEventModule.useDownloadAttendanceReport).mockReturnValue({ downloadReport: vi.fn(), isPending: false })
+  vi.mocked(useEventModule.useUpdatePageBuilder).mockReturnValue({ savePage: vi.fn(), isPending: false })
   vi.mocked(useTicketsModule.useTickets).mockReturnValue({ tickets, isLoading: false })
   vi.mocked(useTicketsModule.useCreateTicket).mockReturnValue({ createTicket: vi.fn(), isPending: false })
   vi.mocked(useTicketsModule.useUpdateTicket).mockReturnValue({ updateTicket: vi.fn(), isPending: false })
@@ -76,9 +78,11 @@ function setupMocks(event = mockEvent, tickets: Ticket[] = []) {
 function renderPage(event = mockEvent, tickets: Ticket[] = []) {
   setupMocks(event, tickets)
   return render(
-    <MemoryRouter initialEntries={['/events/uuid-1']}>
-      <Routes><Route path="/events/:id" element={<EventDetailPage />} /></Routes>
-    </MemoryRouter>
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <MemoryRouter initialEntries={['/events/uuid-1']}>
+        <Routes><Route path="/events/:id" element={<EventDetailPage />} /></Routes>
+      </MemoryRouter>
+    </QueryClientProvider>
   )
 }
 
@@ -114,7 +118,12 @@ describe('EventDetailPage', () => {
     vi.mocked(useSignersModule.useDeleteSigner).mockReturnValue({ deleteSigner: vi.fn(), isPending: false })
     vi.mocked(useSignersModule.useUploadSignerSignature).mockReturnValue({ uploadSignature: vi.fn(), isPending: false })
     vi.mocked(useEventModule.useDownloadAttendanceReport).mockReturnValue({ downloadReport: vi.fn(), isPending: false })
-    render(<MemoryRouter initialEntries={['/events/uuid-1']}><Routes><Route path="/events/:id" element={<EventDetailPage />} /></Routes></MemoryRouter>)
+    vi.mocked(useEventModule.useUpdatePageBuilder).mockReturnValue({ savePage: vi.fn(), isPending: false })
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter initialEntries={['/events/uuid-1']}><Routes><Route path="/events/:id" element={<EventDetailPage />} /></Routes></MemoryRouter>
+      </QueryClientProvider>
+    )
     expect(screen.getByTestId('detail-skeleton')).toBeInTheDocument()
   })
 
