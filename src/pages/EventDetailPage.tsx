@@ -52,6 +52,9 @@ import { RegistrationFieldsTab } from "@/components/RegistrationFieldsTab";
 import { BroadcastsTab } from "@/components/BroadcastsTab";
 import { EventSessionsTab } from "@/components/EventSessionsTab";
 import { MembersTab } from "@/components/MembersTab";
+import { EventPaymentsTab } from "@/components/EventPaymentsTab";
+import { EventNpsTab } from "@/components/EventNpsTab";
+import { MinimumAttendanceTab } from "@/components/MinimumAttendanceTab";
 import { approveParticipant, rejectParticipant } from "@/services/participants";
 import { useTickets, useCreateTicket, useUpdateTicket, useDeleteTicket } from "@/hooks/useTickets";
 import { useCoupons, useCreateCoupon, useUpdateCoupon, useDeactivateCoupon } from "@/hooks/useCoupons";
@@ -123,7 +126,10 @@ type TabId =
     | "certificate"
     | "page"
     | "comunicacao"
-    | "membros";
+    | "membros"
+    | "nps"
+    | "presenca"
+    | "pagamentos";
 
 const TABS: Array<{ id: TabId; label: string }> = [
     { id: "details", label: "Detalhes" },
@@ -138,6 +144,9 @@ const TABS: Array<{ id: TabId; label: string }> = [
     { id: "page", label: "Página" },
     { id: "comunicacao", label: "Comunicação" },
     { id: "membros", label: "Membros" },
+    { id: "nps", label: "NPS" },
+    { id: "presenca", label: "Presença" },
+    { id: "pagamentos", label: "Pagamentos" },
 ];
 
 export function EventDetailPage() {
@@ -1124,6 +1133,15 @@ export function EventDetailPage() {
 
             {/* Tab: Membros */}
             {activeTab === "membros" && <MembersTab eventId={id} />}
+
+            {/* Tab: NPS */}
+            {activeTab === "nps" && <EventNpsTab eventId={id} />}
+
+            {/* Tab: Presença */}
+            {activeTab === "presenca" && <MinimumAttendanceTab eventId={id} />}
+
+            {/* Tab: Pagamentos */}
+            {activeTab === "pagamentos" && <EventPaymentsTab eventId={id} />}
 
             {/* Modals */}
             <TicketFormModal
