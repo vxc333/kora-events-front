@@ -6,6 +6,9 @@ import { DashboardPage } from './DashboardPage'
 import * as useEventsModule from '@/hooks/useEvents'
 
 vi.mock('@/hooks/useEvents')
+vi.mock('@/components/EngagementWidget', () => ({
+  EngagementWidget: () => null,
+}))
 
 const mockEvents = [
   {
