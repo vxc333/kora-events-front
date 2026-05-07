@@ -70,3 +70,13 @@ export async function downloadParticipantCertificate(
   a.click()
   URL.revokeObjectURL(url)
 }
+
+export async function approveParticipant(eventId: string, participantId: string): Promise<Participant> {
+  const res = await api.post<Participant>(`/events/${eventId}/participants/${participantId}/approve`)
+  return res.data
+}
+
+export async function rejectParticipant(eventId: string, participantId: string): Promise<Participant> {
+  const res = await api.post<Participant>(`/events/${eventId}/participants/${participantId}/reject`)
+  return res.data
+}
