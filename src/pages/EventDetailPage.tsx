@@ -36,8 +36,17 @@ import { PartnerFormModal } from "@/components/PartnerFormModal";
 import { ParticipantFormModal } from "@/components/ParticipantFormModal";
 import { SignerFormModal } from "@/components/SignerFormModal";
 import { CertificateStudioTab } from "@/components/CertificateStudioTab";
-import { useEvent, usePublishEvent, useCancelEvent, useUploadEventImage, useDownloadAttendanceReport, useUpdatePageBuilder } from "@/hooks/useEvent";
+import {
+    useEvent,
+    usePublishEvent,
+    useCancelEvent,
+    useUploadEventImage,
+    useDownloadAttendanceReport,
+    useUpdatePageBuilder,
+} from "@/hooks/useEvent";
 import { PageBuilderTab } from "@/components/PageBuilderTab";
+import { RegistrationFieldsTab } from "@/components/RegistrationFieldsTab";
+import { BroadcastsTab } from "@/components/BroadcastsTab";
 import { useTickets, useCreateTicket, useUpdateTicket, useDeleteTicket } from "@/hooks/useTickets";
 import { useCoupons, useCreateCoupon, useUpdateCoupon, useDeactivateCoupon } from "@/hooks/useCoupons";
 import {
@@ -96,17 +105,29 @@ function formatCurrency(value: number): string {
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 }
 
-type TabId = "details" | "tickets" | "participants" | "coupons" | "partners" | "signers" | "certificate" | "page";
+type TabId =
+    | "details"
+    | "tickets"
+    | "participants"
+    | "campos"
+    | "coupons"
+    | "partners"
+    | "signers"
+    | "certificate"
+    | "page"
+    | "comunicacao";
 
 const TABS: Array<{ id: TabId; label: string }> = [
     { id: "details", label: "Detalhes" },
     { id: "tickets", label: "Ingressos" },
     { id: "participants", label: "Participantes" },
+    { id: "campos", label: "Campos" },
     { id: "coupons", label: "Cupons" },
     { id: "partners", label: "Parceiros" },
     { id: "signers", label: "Assinantes" },
     { id: "certificate", label: "Certificado" },
     { id: "page", label: "Página" },
+    { id: "comunicacao", label: "Comunicação" },
 ];
 
 export function EventDetailPage() {
@@ -164,8 +185,6 @@ export function EventDetailPage() {
     // Attendance report
     const { downloadReport, isPending: isDownloadingReport } = useDownloadAttendanceReport(id);
 
-
-
     const [downloadingCertParticipantId, setDownloadingCertParticipantId] = useState<string | null>(null);
 
     async function handleDownloadCertificate(p: Participant) {
@@ -173,7 +192,7 @@ export function EventDetailPage() {
         try {
             await downloadParticipantCertificate(p.id, p.name);
         } catch {
-            toast.error('Erro ao gerar certificado.');
+            toast.error("Erro ao gerar certificado.");
         } finally {
             setDownloadingCertParticipantId(null);
         }
@@ -974,7 +993,11 @@ export function EventDetailPage() {
                                     <div className="flex items-center gap-4 min-w-0">
                                         <div className="flex-shrink-0 w-24 h-10 rounded-md border border-border bg-bg-muted flex items-center justify-center overflow-hidden">
                                             {signer.signatureUrl ? (
-                                                <img src={getMediaUrl(signer.signatureUrl)!} alt="Assinatura" className="w-full h-full object-contain" />
+                                                <img
+                                                    src={getMediaUrl(signer.signatureUrl)!}
+                                                    alt="Assinatura"
+                                                    className="w-full h-full object-contain"
+                                                />
                                             ) : (
                                                 <span className="text-[10px] text-text-disabled">sem assinatura</span>
                                             )}
@@ -1040,6 +1063,12 @@ export function EventDetailPage() {
                     isSaving={isSavingPage}
                 />
             )}
+
+            {/* Tab: Campos */}
+            {activeTab === "campos" && <RegistrationFieldsTab eventId={id} />}
+
+            {/* Tab: Comunicação */}
+            {activeTab === "comunicacao" && <BroadcastsTab eventId={id} />}
 
             {/* Modals */}
             <TicketFormModal
