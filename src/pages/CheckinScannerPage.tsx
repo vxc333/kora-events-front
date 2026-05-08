@@ -81,28 +81,28 @@ const RESULT_CONFIG = {
 type Mode = "qr" | "cpf" | "name" | "secretary" | "facial";
 
 function FacialCheckinView() {
-    const videoRef = useRef<HTMLVideoElement>(null)
-    const [cameraError, setCameraError] = useState<string | null>(null)
-    const [isProcessing, setIsProcessing] = useState(false)
-    const [streamActive, setStreamActive] = useState(false)
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const [cameraError, setCameraError] = useState<string | null>(null);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [streamActive, setStreamActive] = useState(false);
 
     useEffect(() => {
-        let stream: MediaStream | null = null
+        let stream: MediaStream | null = null;
         navigator.mediaDevices
             .getUserMedia({ video: { facingMode: "user" } })
             .then((s) => {
-                stream = s
+                stream = s;
                 if (videoRef.current) {
-                    videoRef.current.srcObject = s
-                    setStreamActive(true)
+                    videoRef.current.srcObject = s;
+                    setStreamActive(true);
                 }
             })
-            .catch(() => setCameraError("Câmera não disponível ou permissão negada"))
+            .catch(() => setCameraError("Câmera não disponível ou permissão negada"));
 
         return () => {
-            stream?.getTracks().forEach((t) => t.stop())
-        }
-    }, [])
+            stream?.getTracks().forEach((t) => t.stop());
+        };
+    }, []);
 
     return (
         <div className="flex flex-col items-center gap-5 px-4">
@@ -116,12 +116,13 @@ function FacialCheckinView() {
                     <>
                         <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
                         {/* Face oval guide */}
-                        <div
-                            className="absolute inset-0 flex items-center justify-center pointer-events-none"
-                        >
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                             <svg width="160" height="200" viewBox="0 0 160 200" fill="none">
                                 <ellipse
-                                    cx="80" cy="100" rx="68" ry="88"
+                                    cx="80"
+                                    cy="100"
+                                    rx="68"
+                                    ry="88"
                                     stroke={isProcessing ? "#a78bfa" : "rgba(255,255,255,0.5)"}
                                     strokeWidth="2"
                                     strokeDasharray={isProcessing ? "8 4" : "none"}
@@ -147,16 +148,16 @@ function FacialCheckinView() {
                 {isProcessing
                     ? "Identificando participante..."
                     : cameraError
-                    ? "Verifique as permissões da câmera"
-                    : "Posicione o rosto dentro da moldura"}
+                      ? "Verifique as permissões da câmera"
+                      : "Posicione o rosto dentro da moldura"}
             </p>
 
             {streamActive && !cameraError && (
                 <button
                     disabled={isProcessing}
                     onClick={() => {
-                        setIsProcessing(true)
-                        setTimeout(() => setIsProcessing(false), 2500)
+                        setIsProcessing(true);
+                        setTimeout(() => setIsProcessing(false), 2500);
                     }}
                     className="rounded-2xl px-8 py-3 text-sm font-semibold text-white transition-all disabled:opacity-60"
                     style={{ background: "linear-gradient(135deg, #5B21B6, #7C3AED)" }}
@@ -177,7 +178,7 @@ function FacialCheckinView() {
                 }
             `}</style>
         </div>
-    )
+    );
 }
 
 export function CheckinScannerPage() {
@@ -194,20 +195,20 @@ export function CheckinScannerPage() {
 
     // Register FCM push token when PWA is available
     useEffect(() => {
-        if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
+        if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
         Notification.requestPermission().then(async (permission) => {
-            if (permission !== 'granted') return
+            if (permission !== "granted") return;
             try {
-                const reg = await navigator.serviceWorker.ready
-                const sub = await reg.pushManager.getSubscription()
+                const reg = await navigator.serviceWorker.ready;
+                const sub = await reg.pushManager.getSubscription();
                 if (sub) {
-                    await registerPushToken(JSON.stringify(sub.endpoint))
+                    await registerPushToken(JSON.stringify(sub.endpoint));
                 }
             } catch {
                 // Push registration is best-effort
             }
-        })
-    }, [])
+        });
+    }, []);
 
     // Secretary mode state
     const [secSearchType, setSecSearchType] = useState<"cpf" | "name">("cpf");
@@ -577,7 +578,7 @@ export function CheckinScannerPage() {
                             {scan.status === "loading" ? <Loader2 size={18} className="animate-spin mx-auto" /> : "Fazer Check-in"}
                         </button>
                     </div>
-                ) : (
+                ) : mode === "secretary" ? (
                     /* Secretary mode */
                     <div className="w-full px-4 flex flex-col gap-4 overflow-y-auto max-h-full pb-2">
                         {/* Header */}
