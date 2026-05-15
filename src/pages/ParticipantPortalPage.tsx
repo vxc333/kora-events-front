@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Calendar, Download, CheckCircle2, Clock, AlertCircle, LogOut, Ticket, ChevronRight } from "lucide-react";
+import { Calendar, Download, CheckCircle2, Clock, AlertCircle, LogOut, Ticket, ChevronRight, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { portalLogin, getPortalEvents, downloadPortalCertificate } from "@/services/participantPortal";
-import type { PortalAuth, PortalEvent } from "@/services/participantPortal";
+import { portalLogin, getPortalEvents, downloadPortalCertificate, getPortalCourses } from "@/services/participantPortal";
+import type { PortalAuth, PortalEvent, PortalCourse } from "@/services/participantPortal";
 
 // ── Helpers ───────────────────────────────────────────────────────────
 
@@ -160,6 +160,80 @@ function EventCardSkeleton() {
     );
 }
 
+// ── Portal course card ────────────────────────────────────────────────
+
+function PortalCourseCard({ course, qrToken }: { course: PortalCourse; qrToken: string }) {
+    return (
+        <Link
+            to={`/portal/cursos/${course.id}?qrToken=${qrToken}`}
+            className="flex flex-col rounded-2xl overflow-hidden transition-all hover:shadow-md"
+            style={{
+                background: "#fff",
+                border: "1.5px solid #EDE8F8",
+                boxShadow: "0 2px 12px rgba(91,33,182,0.06)",
+            }}
+        >
+            {/* Cover */}
+            <div
+                className="h-28 w-full flex items-center justify-center flex-shrink-0"
+                style={{
+                    background: course.coverUrl
+                        ? `url(${course.coverUrl}) center/cover no-repeat`
+                        : "linear-gradient(135deg, #EDE9FE 0%, #DDD6FE 100%)",
+                }}
+            >
+                {!course.coverUrl && (
+                    <BookOpen className="h-8 w-8" style={{ color: "#7C3AED" }} />
+                )}
+            </div>
+
+            {/* Content */}
+            <div className="p-4 flex flex-col gap-2 flex-1">
+                <div>
+                    <p className="text-xs text-[#9CA3AF] mb-0.5">{course.eventTitle}</p>
+                    <p className="font-semibold text-[#19162A] text-sm leading-snug line-clamp-2">
+                        {course.title}
+                    </p>
+                </div>
+
+                {/* Progress bar */}
+                <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                        <span className="text-xs text-[#6A6680]">Progresso</span>
+                        <span
+                            className="text-xs font-semibold"
+                            style={{ color: course.progress >= course.minimumCompletion ? "#16A34A" : "#5B21B6" }}
+                        >
+                            {course.progress}%
+                        </span>
+                    </div>
+                    <div className="h-1.5 rounded-full overflow-hidden bg-[#EDE8F8]">
+                        <div
+                            className="h-full rounded-full transition-all duration-500"
+                            style={{
+                                width: `${course.progress}%`,
+                                background:
+                                    course.progress >= course.minimumCompletion
+                                        ? "#16A34A"
+                                        : "linear-gradient(90deg, #7C3AED, #A78BFA)",
+                            }}
+                        />
+                    </div>
+                </div>
+
+                <Button
+                    size="sm"
+                    className="w-full mt-auto font-semibold"
+                    style={{ background: "#5B21B6", color: "#fff", border: "none" }}
+                >
+                    {course.progress > 0 ? "Continuar" : "Começar"}
+                    <ChevronRight className="h-3.5 w-3.5 ml-1" />
+                </Button>
+            </div>
+        </Link>
+    );
+}
+
 // ── Empty events state ────────────────────────────────────────────────
 
 function EmptyEvents() {
@@ -197,7 +271,14 @@ function DashboardView({ auth, onLogout }: { auth: PortalAuth; onLogout: () => v
         // Handle API not existing yet — return empty array
     });
 
+    const { data: courses } = useQuery({
+        queryKey: ["portal-courses", auth.qrToken],
+        queryFn: () => getPortalCourses(auth.qrToken),
+        retry: false,
+    });
+
     const eventList = events ?? [];
+    const courseList = courses ?? [];
     const firstName = auth.participantName.split(" ")[0];
 
     return (
@@ -272,6 +353,23 @@ function DashboardView({ auth, onLogout }: { auth: PortalAuth; onLogout: () => v
                         </div>
                     )}
                 </div>
+
+                {/* Courses section */}
+                {courseList.length > 0 && (
+                    <div className="mt-8">
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-base font-semibold text-[#19162A]">Meus cursos</h2>
+                            <span className="text-xs text-[#9CA3AF]">
+                                {courseList.length} curso{courseList.length !== 1 ? "s" : ""}
+                            </span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {courseList.map((course: PortalCourse) => (
+                                <PortalCourseCard key={course.id} course={course} qrToken={auth.qrToken} />
+                            ))}
+                        </div>
+                    </div>
+                )}
             </main>
         </div>
     );

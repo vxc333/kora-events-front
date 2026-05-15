@@ -1,4 +1,5 @@
 import { api } from "@/lib/api";
+import type { Course } from "@/services/courses";
 
 export interface PortalAuth {
     qrToken: string; // used as session identifier
@@ -15,6 +16,18 @@ export interface PortalEvent {
     checkedInAt: string | null;
     certificateAvailable: boolean;
     ticketName: string | null;
+}
+
+export interface PortalCourse {
+    id: string;
+    title: string;
+    description: string | null;
+    coverUrl: string | null;
+    totalDuration: number;
+    minimumCompletion: number;
+    eventTitle: string;
+    progress: number; // 0-100 percentage of modules completed
+    certificateAvailable: boolean;
 }
 
 export async function portalLogin(cpf: string, email: string): Promise<PortalAuth> {
@@ -40,4 +53,27 @@ export async function downloadPortalCertificate(qrToken: string, eventId: string
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+}
+
+export async function getPortalCourses(qrToken: string): Promise<PortalCourse[]> {
+    const res = await api.get<PortalCourse[]>("/portal/courses", { params: { qrToken } });
+    return res.data;
+}
+
+export async function getPortalCourse(qrToken: string, courseId: string): Promise<Course> {
+    const res = await api.get<Course>(`/portal/courses/${courseId}`, { params: { qrToken } });
+    return res.data;
+}
+
+export async function completePortalModule(
+    qrToken: string,
+    courseId: string,
+    moduleId: string,
+): Promise<{ completedAt: string }> {
+    const res = await api.post<{ completedAt: string }>(
+        `/portal/courses/${courseId}/modules/${moduleId}/complete`,
+        {},
+        { params: { qrToken } },
+    );
+    return res.data;
 }
