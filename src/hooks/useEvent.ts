@@ -129,6 +129,7 @@ export function useDownloadAttendanceReport(eventId: string) {
       URL.revokeObjectURL(url)
       toast.success('Relatório baixado!')
     },
+    onError: () => toast.error('Erro ao gerar relatório de presença.'),
   })
 
   return { downloadReport: mutation.mutate, isPending: mutation.isPending }

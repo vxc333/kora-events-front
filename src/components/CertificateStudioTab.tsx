@@ -844,6 +844,20 @@ export function CertificateStudioTab({ eventId, event, signers }: Props) {
         () => localStorage.getItem(`kora-ct-${eventId}`) || event.certificateBodyText || DEFAULT_BODY,
     );
     const [saved, setSaved] = useState(false);
+
+    // Autosave draft to localStorage whenever values change
+    useEffect(() => {
+        if (watermarkUrl) localStorage.setItem(`kora-wm-${eventId}`, watermarkUrl);
+        else localStorage.removeItem(`kora-wm-${eventId}`);
+    }, [watermarkUrl, eventId]);
+
+    useEffect(() => {
+        localStorage.setItem(`kora-wm-op-${eventId}`, String(watermarkOpacity));
+    }, [watermarkOpacity, eventId]);
+
+    useEffect(() => {
+        localStorage.setItem(`kora-ct-${eventId}`, bodyText);
+    }, [bodyText, eventId]);
     const [scale, setScale] = useState(0.6);
 
     const previewRef = useRef<HTMLDivElement>(null);
@@ -878,10 +892,6 @@ export function CertificateStudioTab({ eventId, event, signers }: Props) {
             }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["event", eventId] });
-            if (watermarkUrl) localStorage.setItem(`kora-wm-${eventId}`, watermarkUrl);
-            else localStorage.removeItem(`kora-wm-${eventId}`);
-            localStorage.setItem(`kora-wm-op-${eventId}`, String(watermarkOpacity));
-            localStorage.setItem(`kora-ct-${eventId}`, bodyText);
             toast.success("Configurações salvas!");
             setSaved(true);
             setTimeout(() => setSaved(false), 2500);
@@ -939,7 +949,8 @@ export function CertificateStudioTab({ eventId, event, signers }: Props) {
     html, body { background: #e8e8e6; display: flex; align-items: flex-start; justify-content: center; min-height: 100vh; padding: 40px; }
     @media print {
       @page { size: ${isLandscape ? "landscape" : "portrait"}; margin: 0; }
-      html, body { background: white; padding: 0; min-height: auto; }
+      html, body { background: white; padding: 0; min-height: auto; display: block; }
+      * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
     }
   </style>
 </head>
