@@ -25,3 +25,10 @@ export async function exportNpsCsv(eventId: string): Promise<void> {
   a.click()
   URL.revokeObjectURL(url)
 }
+
+export async function submitNps(
+  eventId: string,
+  payload: { score: number; comment?: string; respondentToken: string }
+): Promise<void> {
+  await api.post(`/public/nps/${eventId}`, payload)
+}
