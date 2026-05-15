@@ -21,6 +21,8 @@ import { WhiteLabelSettingsPage } from '@/pages/WhiteLabelSettingsPage'
 import { MarketplacePage } from '@/pages/MarketplacePage'
 import { CoursePlayerPage } from '@/pages/CoursePlayerPage'
 import { ParticipantPortalPage } from '@/pages/ParticipantPortalPage'
+import { PortalCoursePlayerPage } from '@/pages/PortalCoursePlayerPage'
+import { NpsFormPage } from '@/pages/NpsFormPage'
 
 export default function App() {
   return (
@@ -28,12 +30,14 @@ export default function App() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/eventos" element={<MarketplacePage />} />
       <Route path="/portal" element={<ParticipantPortalPage />} />
+      <Route path="/portal/cursos/:courseId" element={<PortalCoursePlayerPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/e/:slug" element={<PublicEventPage />} />
       <Route path="/e/:slug/confirmacao" element={<ConfirmationPage />} />
+      <Route path="/nps/:eventId" element={<NpsFormPage />} />
       <Route element={<PrivateRoute><AppShell /></PrivateRoute>}>
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/events/new" element={<EventFormPage />} />
