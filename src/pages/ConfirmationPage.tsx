@@ -149,8 +149,14 @@ export function ConfirmationPage() {
             a.download = "certificado.pdf";
             a.click();
             URL.revokeObjectURL(url);
-        } catch {
-            // silently fail — button stays enabled for retry
+            toast.success("Certificado baixado com sucesso!");
+        } catch (err: unknown) {
+            const status = (err as { response?: { status?: number } })?.response?.status;
+            if (status === 403) {
+                toast.error("Certificado ainda não disponível.");
+            } else {
+                toast.error("Erro ao baixar certificado. Tente novamente.");
+            }
         } finally {
             setIsDownloading(false);
         }

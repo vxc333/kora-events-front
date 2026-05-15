@@ -55,6 +55,7 @@ import { MembersTab } from "@/components/MembersTab";
 import { EventPaymentsTab } from "@/components/EventPaymentsTab";
 import { EventNpsTab } from "@/components/EventNpsTab";
 import { MinimumAttendanceTab } from "@/components/MinimumAttendanceTab";
+import { CoursesTab } from "@/components/CoursesTab";
 import { approveParticipant, rejectParticipant } from "@/services/participants";
 import { useTickets, useCreateTicket, useUpdateTicket, useDeleteTicket } from "@/hooks/useTickets";
 import { useCoupons, useCreateCoupon, useUpdateCoupon, useDeactivateCoupon } from "@/hooks/useCoupons";
@@ -129,7 +130,8 @@ type TabId =
     | "membros"
     | "nps"
     | "presenca"
-    | "pagamentos";
+    | "pagamentos"
+    | "cursos";
 
 const TABS: Array<{ id: TabId; label: string }> = [
     { id: "details", label: "Detalhes" },
@@ -144,6 +146,7 @@ const TABS: Array<{ id: TabId; label: string }> = [
     { id: "page", label: "Página" },
     { id: "comunicacao", label: "Comunicação" },
     { id: "membros", label: "Membros" },
+    { id: "cursos", label: "Cursos" },
     { id: "nps", label: "NPS" },
     { id: "presenca", label: "Presença" },
     { id: "pagamentos", label: "Pagamentos" },
@@ -215,6 +218,20 @@ export function EventDetailPage() {
             toast.error("Erro ao gerar certificado.");
         } finally {
             setDownloadingCertParticipantId(null);
+        }
+    }
+
+    const [isExportingCsv, setIsExportingCsv] = useState(false);
+
+    async function handleExportCsv() {
+        if (isExportingCsv) return;
+        setIsExportingCsv(true);
+        try {
+            await exportParticipantsCsv(id, event?.title ?? id);
+        } catch {
+            toast.error("Erro ao exportar CSV.");
+        } finally {
+            setIsExportingCsv(false);
         }
     }
 
@@ -676,7 +693,8 @@ export function EventDetailPage() {
                             <Button
                                 variant="secondary"
                                 size="sm"
-                                onClick={() => exportParticipantsCsv(id, event?.title ?? id)}
+                                loading={isExportingCsv}
+                                onClick={handleExportCsv}
                                 className="gap-1.5"
                             >
                                 <Download className="h-3.5 w-3.5" />
@@ -1142,6 +1160,9 @@ export function EventDetailPage() {
 
             {/* Tab: Pagamentos */}
             {activeTab === "pagamentos" && <EventPaymentsTab eventId={id} />}
+
+            {/* Tab: Cursos */}
+            {activeTab === "cursos" && <CoursesTab eventId={id} />}
 
             {/* Modals */}
             <TicketFormModal
